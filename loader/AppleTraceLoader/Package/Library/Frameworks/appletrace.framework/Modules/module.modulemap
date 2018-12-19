@@ -1,0 +1,6 @@
+framework module appletrace {
+  umbrella header "appletrace.h"
+
+  export *
+  module * { export * }
+}

@@ -1,0 +1,459 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		D1CC5A4D2185E5B000726C5E /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1CC5A4C2185E5B000726C5E /* Foundation.framework */; };
+		D1CC5A782185E62E00726C5E /* appletrace.mm in Sources */ = {isa = PBXBuildFile; fileRef = D1CC5A742185E62E00726C5E /* appletrace.mm */; };
+		D1CC5A792185E62E00726C5E /* appletrace.h in Headers */ = {isa = PBXBuildFile; fileRef = D1CC5A752185E62E00726C5E /* appletrace.h */; };
+		D1CC5A7A2185E62E00726C5E /* hook_objc_msgSend.m in Sources */ = {isa = PBXBuildFile; fileRef = D1CC5A772185E62E00726C5E /* hook_objc_msgSend.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
+		D1CC5A7E2185EA4E00726C5E /* HookZz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1CC5A722185E61D00726C5E /* HookZz.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D1CC5A712185E61D00726C5E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 865F5FD01F6123390000622F;
+			remoteInfo = HookZz;
+		};
+		D1CC5A7C2185E6C700726C5E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */;
+			proxyType = 1;
+			remoteGlobalIDString = 865F5FCF1F6123390000622F;
+			remoteInfo = HookZz;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		D1CC5A492185E5B000726C5E /* AppleTraceSpringBoard.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = AppleTraceSpringBoard.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		D1CC5A4C2185E5B000726C5E /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		D1CC5A512185E5B000726C5E /* control */ = {isa = PBXFileReference; lastKnownFileType = text; name = control; path = Package/DEBIAN/control; sourceTree = "<group>"; };
+		D1CC5A552185E5B000726C5E /* AppleTraceSpringBoard.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = AppleTraceSpringBoard.plist; path = Package/Library/PreferenceLoader/Preferences/AppleTraceSpringBoard.plist; sourceTree = "<group>"; };
+		D1CC5A562185E5B000726C5E /* AppleTraceSpringBoardIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = AppleTraceSpringBoardIcon.png; path = Package/Library/PreferenceLoader/Preferences/AppleTraceSpringBoardIcon.png; sourceTree = "<group>"; };
+		D1CC5A572185E5B000726C5E /* AppleTraceSpringBoardIcon@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "AppleTraceSpringBoardIcon@2x.png"; path = "Package/Library/PreferenceLoader/Preferences/AppleTraceSpringBoardIcon@2x.png"; sourceTree = "<group>"; };
+		D1CC5A592185E5B000726C5E /* AppleTraceSpringBoard-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AppleTraceSpringBoard-Prefix.pch"; sourceTree = "<group>"; };
+		D1CC5A5E2185E5B000726C5E /* AppleTraceSpringBoard.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = AppleTraceSpringBoard.plist; path = Package/Library/MobileSubstrate/DynamicLibraries/AppleTraceSpringBoard.plist; sourceTree = "<group>"; };
+		D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = HookZz.xcodeproj; path = ../../../hookzz/ios/HookZz.xcodeproj; sourceTree = "<group>"; };
+		D1CC5A742185E62E00726C5E /* appletrace.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = appletrace.mm; sourceTree = "<group>"; };
+		D1CC5A752185E62E00726C5E /* appletrace.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = appletrace.h; sourceTree = "<group>"; };
+		D1CC5A772185E62E00726C5E /* hook_objc_msgSend.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = hook_objc_msgSend.m; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D1CC5A452185E5B000726C5E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D1CC5A7E2185EA4E00726C5E /* HookZz.framework in Frameworks */,
+				D1CC5A4D2185E5B000726C5E /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D1CC5A3F2185E5B000726C5E = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A4E2185E5B000726C5E /* AppleTraceSpringBoard */,
+				D1CC5A4B2185E5B000726C5E /* Frameworks */,
+				D1CC5A4A2185E5B000726C5E /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D1CC5A4A2185E5B000726C5E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A492185E5B000726C5E /* AppleTraceSpringBoard.dylib */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D1CC5A4B2185E5B000726C5E /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A4C2185E5B000726C5E /* Foundation.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		D1CC5A4E2185E5B000726C5E /* AppleTraceSpringBoard */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */,
+				D1CC5A732185E62E00726C5E /* src */,
+				D1CC5A4F2185E5B000726C5E /* Package */,
+				D1CC5A582185E5B000726C5E /* Supporting Files */,
+			);
+			path = AppleTraceSpringBoard;
+			sourceTree = "<group>";
+		};
+		D1CC5A4F2185E5B000726C5E /* Package */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A502185E5B000726C5E /* DEBIAN */,
+				D1CC5A522185E5B000726C5E /* Library */,
+			);
+			name = Package;
+			sourceTree = "<group>";
+		};
+		D1CC5A502185E5B000726C5E /* DEBIAN */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A512185E5B000726C5E /* control */,
+			);
+			name = DEBIAN;
+			sourceTree = "<group>";
+		};
+		D1CC5A522185E5B000726C5E /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A532185E5B000726C5E /* PreferenceLoader */,
+				D1CC5A5C2185E5B000726C5E /* MobileSubstrate */,
+			);
+			name = Library;
+			sourceTree = "<group>";
+		};
+		D1CC5A532185E5B000726C5E /* PreferenceLoader */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A542185E5B000726C5E /* Preferences */,
+			);
+			name = PreferenceLoader;
+			sourceTree = "<group>";
+		};
+		D1CC5A542185E5B000726C5E /* Preferences */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A552185E5B000726C5E /* AppleTraceSpringBoard.plist */,
+				D1CC5A562185E5B000726C5E /* AppleTraceSpringBoardIcon.png */,
+				D1CC5A572185E5B000726C5E /* AppleTraceSpringBoardIcon@2x.png */,
+			);
+			name = Preferences;
+			sourceTree = "<group>";
+		};
+		D1CC5A582185E5B000726C5E /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A592185E5B000726C5E /* AppleTraceSpringBoard-Prefix.pch */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+		D1CC5A5C2185E5B000726C5E /* MobileSubstrate */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A5D2185E5B000726C5E /* DynamicLibraries */,
+			);
+			name = MobileSubstrate;
+			sourceTree = "<group>";
+		};
+		D1CC5A5D2185E5B000726C5E /* DynamicLibraries */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A5E2185E5B000726C5E /* AppleTraceSpringBoard.plist */,
+			);
+			name = DynamicLibraries;
+			sourceTree = "<group>";
+		};
+		D1CC5A6E2185E61D00726C5E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A722185E61D00726C5E /* HookZz.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D1CC5A732185E62E00726C5E /* src */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A742185E62E00726C5E /* appletrace.mm */,
+				D1CC5A752185E62E00726C5E /* appletrace.h */,
+				D1CC5A762185E62E00726C5E /* objc */,
+			);
+			name = src;
+			path = ../../../appletrace/appletrace/src;
+			sourceTree = "<group>";
+		};
+		D1CC5A762185E62E00726C5E /* objc */ = {
+			isa = PBXGroup;
+			children = (
+				D1CC5A772185E62E00726C5E /* hook_objc_msgSend.m */,
+			);
+			path = objc;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		D1CC5A462185E5B000726C5E /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D1CC5A792185E62E00726C5E /* appletrace.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		D1CC5A482185E5B000726C5E /* AppleTraceSpringBoard */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D1CC5A612185E5B000726C5E /* Build configuration list for PBXNativeTarget "AppleTraceSpringBoard" */;
+			buildPhases = (
+				D1CC5A442185E5B000726C5E /* Sources */,
+				D1CC5A452185E5B000726C5E /* Frameworks */,
+				D1CC5A462185E5B000726C5E /* Headers */,
+				D1CC5A472185E5B000726C5E /* ShellScript */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D1CC5A7D2185E6C700726C5E /* PBXTargetDependency */,
+			);
+			name = AppleTraceSpringBoard;
+			productName = AppleTraceSpringBoard;
+			productReference = D1CC5A492185E5B000726C5E /* AppleTraceSpringBoard.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D1CC5A402185E5B000726C5E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1000;
+				TargetAttributes = {
+					D1CC5A482185E5B000726C5E = {
+						CreatedOnToolsVersion = 10.0;
+					};
+				};
+			};
+			buildConfigurationList = D1CC5A432185E5B000726C5E /* Build configuration list for PBXProject "AppleTraceSpringBoard" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = D1CC5A3F2185E5B000726C5E;
+			productRefGroup = D1CC5A4A2185E5B000726C5E /* Products */;
+			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = D1CC5A6E2185E61D00726C5E /* Products */;
+					ProjectRef = D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */;
+				},
+			);
+			projectRoot = "";
+			targets = (
+				D1CC5A482185E5B000726C5E /* AppleTraceSpringBoard */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		D1CC5A722185E61D00726C5E /* HookZz.framework */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.framework;
+			path = HookZz.framework;
+			remoteRef = D1CC5A712185E61D00726C5E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		D1CC5A472185E5B000726C5E /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/opt/MonkeyDev/bin/md --xcbp";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D1CC5A442185E5B000726C5E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D1CC5A7A2185E62E00726C5E /* hook_objc_msgSend.m in Sources */,
+				D1CC5A782185E62E00726C5E /* appletrace.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D1CC5A7D2185E6C700726C5E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = HookZz;
+			targetProxy = D1CC5A7C2185E6C700726C5E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		D1CC5A5F2185E5B000726C5E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				COPY_PHASE_STRIP = YES;
+				EXCLUDED_RECURSIVE_SEARCH_PATH_SUBDIRECTORIES = "*.nib *.lproj *.gch (*) .DS_Store CVS .svn .git .hg *.xcodeproj *.xcode *.pbproj *.pbxproj";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(MonkeyDevPath)/frameworks/**",
+					"$(MonkeyDevTheosPath)/vendor/lib",
+				);
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(MonkeyDevTheosPath)/vendor/include/**";
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				LIBRARY_SEARCH_PATHS = "$(MonkeyDevTheosPath)/vendor/lib/**";
+				MonkeyDevPath = /opt/MonkeyDev;
+				MonkeyDevTheosPath = /opt/theos;
+				OTHER_CFLAGS = "-DTHEOS_INSTANCE_NAME=\"\\\"AppleTraceSpringBoard\\\"\"";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		D1CC5A602185E5B000726C5E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				COPY_PHASE_STRIP = NO;
+				EXCLUDED_RECURSIVE_SEARCH_PATH_SUBDIRECTORIES = "*.nib *.lproj *.gch (*) .DS_Store CVS .svn .git .hg *.xcodeproj *.xcode *.pbproj *.pbxproj";
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(MonkeyDevPath)/frameworks/**",
+					"$(MonkeyDevTheosPath)/vendor/lib",
+				);
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$(MonkeyDevTheosPath)/vendor/include/**";
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				LIBRARY_SEARCH_PATHS = "$(MonkeyDevTheosPath)/vendor/lib/**";
+				MonkeyDevPath = /opt/MonkeyDev;
+				MonkeyDevTheosPath = /opt/theos;
+				ONLY_ACTIVE_ARCH = YES;
+				OTHER_CFLAGS = "-DTHEOS_INSTANCE_NAME=\"\\\"AppleTraceSpringBoard\\\"\"";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = NO;
+			};
+			name = Debug;
+		};
+		D1CC5A622185E5B000726C5E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = YPV49M8592;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				ENABLE_BITCODE = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "AppleTraceSpringBoard/AppleTraceSpringBoard-Prefix.pch";
+				HEADER_SEARCH_PATHS = (
+					"$(MonkeyDevPath)/include",
+					"$(MonkeyDevTheosPath)/vendor/include/**",
+				);
+				INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries;
+				MonkeyDevBuildPackageOnAnyBuild = NO;
+				MonkeyDevClearUiCacheOnInstall = NO;
+				MonkeyDevCopyOnBuild = NO;
+				MonkeyDevDeviceIP = localhost;
+				MonkeyDevDevicePassword = "";
+				MonkeyDevDevicePort = 2222;
+				MonkeyDevInstallOnAnyBuild = YES;
+				MonkeyDevInstallOnProfiling = YES;
+				MonkeyDevkillProcessOnInstall = SpringBoard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		D1CC5A632185E5B000726C5E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = YPV49M8592;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				ENABLE_BITCODE = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "AppleTraceSpringBoard/AppleTraceSpringBoard-Prefix.pch";
+				HEADER_SEARCH_PATHS = (
+					"$(MonkeyDevPath)/include",
+					"$(MonkeyDevTheosPath)/vendor/include/**",
+				);
+				INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries;
+				MonkeyDevBuildPackageOnAnyBuild = NO;
+				MonkeyDevClearUiCacheOnInstall = NO;
+				MonkeyDevCopyOnBuild = NO;
+				MonkeyDevDeviceIP = localhost;
+				MonkeyDevDevicePassword = "";
+				MonkeyDevDevicePort = 2222;
+				MonkeyDevInstallOnAnyBuild = YES;
+				MonkeyDevInstallOnProfiling = YES;
+				MonkeyDevkillProcessOnInstall = SpringBoard;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		D1CC5A432185E5B000726C5E /* Build configuration list for PBXProject "AppleTraceSpringBoard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D1CC5A5F2185E5B000726C5E /* Release */,
+				D1CC5A602185E5B000726C5E /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D1CC5A612185E5B000726C5E /* Build configuration list for PBXNativeTarget "AppleTraceSpringBoard" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D1CC5A622185E5B000726C5E /* Release */,
+				D1CC5A632185E5B000726C5E /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D1CC5A402185E5B000726C5E /* Project object */;
+}
