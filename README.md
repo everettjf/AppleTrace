@@ -5,8 +5,8 @@ Trace tool for iOS/macOS
 
 ![logo](/image/appletrace-small.png)
 
-- [中文说明，开发思路及方法](http://everettjf.com/2017/09/21/appletrace/)
-- [搭载MonkeyDev可trace第三方App](http://everettjf.com/2017/10/12/appletrace-dancewith-monkeydev/)
+- [中文说明，开发思路及方法](http://everettjf.github.io/2017/09/21/appletrace/)
+- [搭载MonkeyDev可trace第三方App](http://everettjf.github.io/2017/10/12/appletrace-dancewith-monkeydev/)
 
 ![appletrace](https://everettjf.github.io/stuff/appletrace/appletrace.gif)
 
