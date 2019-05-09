@@ -11,6 +11,8 @@ Trace tool for iOS/macOS
 ![appletrace](https://everettjf.github.io/stuff/appletrace/appletrace.gif)
 
 
+**There is a replacement called [Messier](https://messier.app/) which is more easier to use**
+
 ## Feature
 
 1. User-defined trace section.
