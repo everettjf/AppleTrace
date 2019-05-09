@@ -3,6 +3,8 @@ Trace tool for iOS/macOS
 
 `AppleTrace` is developed for analyzing app's performance on `iOS/macOS`.
 
+*There is a replacement called [Messier](https://messier.app/) which is more easier to use*
+
 ![logo](/image/appletrace-small.png)
 
 - [中文说明，开发思路及方法](http://everettjf.github.io/2017/09/21/appletrace/)
@@ -11,7 +13,6 @@ Trace tool for iOS/macOS
 ![appletrace](https://everettjf.github.io/stuff/appletrace/appletrace.gif)
 
 
-**There is a replacement called [Messier](https://messier.app/) which is more easier to use**
 
 ## Feature
 
