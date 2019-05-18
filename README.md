@@ -1,7 +1,7 @@
 # AppleTrace
 Trace tool for iOS/macOS
 
-`AppleTrace` is developed for analyzing app's performance on `iOS/macOS`.
+`AppleTrace` is developed for analyzing app's performance on `iOS`.
 
 *>> I have developed a replacement called [Messier](https://messier.app/) which is more easier to use. :)*
 
