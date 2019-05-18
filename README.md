@@ -1,5 +1,4 @@
 # AppleTrace
-Trace tool for iOS/macOS
 
 `AppleTrace` is developed for analyzing app's performance on `iOS`.
 
