@@ -2,7 +2,7 @@
 
 `AppleTrace` is developed for analyzing app's performance on `iOS`.
 
-*>> I have developed a replacement called [Messier](https://messier.app/) which is more easier to use. :)*
+*>> I have developed a replacement called [Messier](https://messier.app/) which is much easier to use. :)*
 
 ![logo](/image/appletrace-small.png)
 
