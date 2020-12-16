@@ -219,7 +219,7 @@ zbool zz_posix_vm_patch_code(const zaddr address, const zpointer codedata, zuint
     page_offset = address - start_page_addr;
     range_size = (end_page_addr + page_size) - start_page_addr;
 
-    //  another method, pelease read `REF`;
+    //  another method, please read `REF`;
 
     // zpointer code_mmap = mmap(NULL, range_size, PROT_READ | PROT_WRITE,
     //                           MAP_ANON | MAP_SHARED, -1, 0);
