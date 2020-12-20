@@ -466,7 +466,7 @@ zbool zz_vm_patch_code_via_task(task_t task, const zaddr address, const zpointer
     }
 
     /*
-      another method, pelease read `REF`;
+      another method, please read `REF`;
 
      */
     // zpointer code_mmap = mmap(NULL, range_size, PROT_READ | PROT_WRITE,
