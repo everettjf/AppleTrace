@@ -2,7 +2,7 @@
 
 `AppleTrace` is developed for analyzing app's performance on `iOS`.
 
-*>> I have developed a replacement called [Messier](https://messier.app/) which is much easier to use. :)*
+*>> I have developed a replacement called [Messier](https://messier.github.io/) which is much easier to use. :)*
 
 ![logo](/image/appletrace-small.png)
 
@@ -115,6 +115,6 @@ Open `sampledata/trace.html` using Chrome.
 
 欢迎关注微信订阅号，更多有趣的性能优化点点滴滴。
 
-![fun](https://everettjf.github.io/images/fun.jpg)
+![fun](wechat.png)
 
 
