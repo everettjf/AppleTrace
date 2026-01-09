@@ -1,55 +1,69 @@
 # AppleTrace
-
-`AppleTrace` is developed for analyzing app's performance on `iOS`.
+> AppleTrace is an iOS tracing toolkit that captures your app's execution timeline and renders it with Chrome's tracing tools.
 
 *>> I have developed a replacement called [Messier](https://messier.github.io/) which is much easier to use. :)*
 
 ![logo](/image/appletrace-small.png)
 
-- [中文说明，开发思路及方法](http://everettjf.github.io/2017/09/21/appletrace/)
-- [搭载MonkeyDev可trace第三方App](http://everettjf.github.io/2017/10/12/appletrace-dancewith-monkeydev/)
+**Additional documentation (Chinese)**  
+- [中文说明，开发思路及方法](http://everettjf.github.io/2017/09/21/appletrace/)  
+- [搭载MonkeyDev可 trace 第三方 App](http://everettjf.github.io/2017/10/12/appletrace-dancewith-monkeydev/)
 
 ![appletrace](https://everettjf.github.io/stuff/appletrace/appletrace.gif)
 
+## Badges
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-iOS-lightgrey.svg)](#)
 
+## Table of Contents
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Usage](#usage)
+- [FAQ](#faq)
+- [Configuration](#configuration)
+- [Examples](#examples)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgements](#acknowledgements)
+- [Star History](#star-history)
 
-## Feature
+## Features
+1. Define custom trace sections anywhere in Objective-C or C/C++ code with `APTBeginSection` / `APTEndSection`.
+2. Automatically trace Objective-C method calls by hooking every `objc_msgSend` using HookZz (arm64, LLDB).
+3. Export data that can be dropped directly into `chrome://tracing` or converted into shareable HTML reports.
 
-1. User-defined trace section.
-2. Trace Objective C methods.
+## Quick Start
+1. **Clone** the repository with `git clone https://github.com/everettjf/AppleTrace.git`. For stable builds refer to [Releases](https://github.com/everettjf/AppleTrace/releases).
+2. **Instrument** your app by either adding `appletrace.framework` and manual `APTBegin`/`APTEnd` macros or by running the provided HookZz-based dynamic library to trace every `objc_msgSend`.
+3. **Run** the app on a Simulator or arm64 device (debugger/LLDB required for HookZz mode) to produce trace files inside `<app sandbox>/Library/appletracedata`.
+4. **Merge & visualize** the trace by running `sh go.sh <path-to-appletracedata>`. The script calls `python merge.py` and `catapult/tracing/bin/trace2html` when Catapult is available, then opens Chrome with the generated `trace.html`. Without Catapult you can still drag `trace.json` into `chrome://tracing`.
 
-## FAQ
-
-[Go to Wiki](https://github.com/everettjf/AppleTrace/wiki)
-
-## Clone
-
-```
-git clone https://github.com/everettjf/AppleTrace.git
-```
-
-For stable release , please refer to [Releases](https://github.com/everettjf/AppleTrace/releases)
+## Installation
+- **Dependencies**
+  - macOS with Xcode (to build the framework, samples, and loader).
+  - Python 2.x (for `merge.py` and `go.sh`).
+  - Chrome browser for viewing traces.
+  - LLDB if you plan to hook every `objc_msgSend`.
+- **Clone the source**
+  ```bash
+  git clone https://github.com/everettjf/AppleTrace.git
+  ```
+- **Catapult tooling**  
+  Run `sh get_catapult.sh` once to fetch the [catapult-project/catapult](https://github.com/catapult-project/catapult) repository used by `trace2html`.
+- **Release builds**  
+  The packaged loader under `release/` currently targets **arm64 only** (`release/README.md`). Use the `AppleTraceLoader` target and `loader/resign.sh` to rebuild or refresh it.
 
 ## Usage
+AppleTrace follows a four-step workflow. The sections below expand on each step.
 
-1. Produce trace data.
-2. Copy from app's sandbox directory.
-3. Merge (all) trace data files into one file `trace.json`. (There may be more than 1 trace file.)
-4. Generate `trace.html` based on `trace.json`.
+### 1. Produce trace data
+There are two supported modes:
 
-See below for more detail.
-
-### 1. Produce
-
-
-Until now , there are 2 ways for generating trace data.
-
-(1) Manual set section.
-
-Call `APTBeginSection` at the beginning of method ,and `APTEndSection` at the end of method. For Objective C method (whether instance method or class method), there are `APTBegin` and `APTEnd` macro for easy coding.
-	
-```
-void anyKindsOfMethod{
+**Manual instrumentation**
+```objc
+void anyKindsOfMethod(){
     APTBeginSection("process");
     // some code
     APTEndSection("process");
@@ -61,60 +75,73 @@ void anyKindsOfMethod{
     APTEnd;
 }
 ```
-	
-Sample app is `sample/ManualSectionDemo`.
-	
-(2) Dynamic library hooking all objc_msgSend.
+Use the `sample/ManualSectionDemo` Xcode project as a reference integration.
 
-Hooking all objc_msgSend methods (based on HookZz). This only support arm64 under debugger ( lldb).
+**Dynamic hook**
+- Use the HookZz-based dynamic library that hooks every `objc_msgSend`.
+- Requires arm64 and running under LLDB.
+- `sample/TraceAllMsgDemo` demonstrates this setup.
 
-Sample app is `sample/TraceAllMsgDemo`.
-
-### 2. Copy
-
-Using any kinds of method, copy `<app's sandbox>/Library/appletracedata` out of Simulator/RealDevice.
+### 2. Copy the raw data
+After the device/session run completes, copy `<app sandbox>/Library/appletracedata` from either the Simulator or the physical device.
 
 ![appletracedata](image/appletracedata.png)
 
-
-### 3. Merge
-
-Merge/Preprocess the `appletracedata`.
-
-```
+### 3. Merge trace files
+Merge and preprocess the captured `trace.appletrace`, `trace_*.appletrace`, etc.
+```bash
 python merge.py -d <appletracedata directory>
 ```
+The script writes `trace.json` into the same directory. The helper script `sh go.sh <appletracedata directory>` executes the merge and (optionally) generates HTML in one step.
 
-This will produce `trace.json` in appletracedata directory.
+### 4. Generate HTML / visualize
+1. Run `sh get_catapult.sh` once to download Catapult.
+2. Convert the JSON into HTML:
+   ```bash
+   python catapult/tracing/bin/trace2html appletracedata/trace.json --output=appletracedata/trace.html
+   open appletracedata/trace.html
+   ```
+3. Alternatively drop `trace.json` onto `chrome://tracing`.  
+   *`trace.html` is only supported by Chrome.*
 
-NOW !!!, you could drop `trace.json` into Chrome's `chrome://tracing`. Or if you want to generate a html result, continue to the 4th step.
+## FAQ
+Additional answers live in the [project wiki](https://github.com/everettjf/AppleTrace/wiki).
 
-### 4. Generate
+## Configuration
+- **Instrumentation macros** — Use `APTBeginSection(name)`/`APTEndSection(name)` for C/C++ and `APTBegin`/`APTEnd` in Objective-C. Create sections that reflect your business logic to highlight performance hotspots.
+- **Hook configuration** — The HookZz-based mode hooks every `objc_msgSend`, requires LLDB, and currently supports arm64 only.
+- **Data location** — Traces are stored under `<app sandbox>/Library/appletracedata`. The `merge.py` output is `trace.json` in that directory.
+- **Catapult path** — `catapult/tracing/bin/trace2html` is invoked during report generation. Use the bundled `get_catapult.sh` script to download the correct version.
+- **Loader/signing** — When replacing `loader/AppleTraceLoader/Package/Library/Frameworks/appletrace.framework`, run `loader/resign.sh` (uses `ldid -S`) to keep the loader deployable.
 
-Run `sh get_catapult.sh` to get catapult source.
+## Examples
+- `sample/ManualSectionDemo` — demonstrates manual section markers in Objective-C.
+- `sample/TraceAllMsgDemo` — shows how to run the HookZz dynamic hook for capturing every method call.
+- `sampledata/trace.html` — open the bundled HTML in Chrome to explore a pre-recorded trace.
 
-Then generate `trace.html` using `catapult`.
+## Development
+- Open `appletrace/appletrace.xcodeproj` in Xcode to hack on the framework and Objective-C runtime hooks.
+- Use the sample projects under `sample/` to validate manual instrumentation and HookZz integrations.
+- `get_catapult.sh`, `merge.py`, and `go.sh` compose the trace-processing toolchain—keep them in sync when upgrading dependencies.
+- The loader artifacts live in `loader/AppleTraceLoader`. After swapping in a rebuilt framework, execute `loader/resign.sh` to re-sign with `ldid`.
+- Run `python merge.py -d <path>` and inspect the resulting `trace.json`/`trace.html` during development to verify new instrumentation.
 
-```
-python catapult/tracing/bin/trace2html appletracedata/trace.json --output=appletracedata/trace.html
-open trace.html
-```
+## Contributing
+Issues, pull requests, and ideas are welcome. Please:
+- Keep PRs focused on a single improvement (instrumentation, tooling, docs, etc.).
+- Test changes with the sample projects or your own app and attach relevant traces.
+- Update documentation (README/AGENT/wiki) whenever behavior changes.
 
-*trace.html only support Chrome*
+## License
+AppleTrace is released under the [MIT License](LICENSE).
 
-## SampleData
+## Acknowledgements
+- [HookZz](https://github.com/jmpews/HookZz) powers the `objc_msgSend` hook mode.
+- [Catapult](https://github.com/catapult-project/catapult) provides `trace2html`.
+- 欢迎关注微信订阅号，更多有趣的性能优化点点滴滴：  
+  ![fun](wechat.png)
 
-Open `sampledata/trace.html` using Chrome.
+## Star History
 
-## Thanks
-
-1. HookZz : https://github.com/jmpews/HookZz
-2. catapult : https://github.com/catapult-project/catapult
-
-## Group
-
-欢迎关注微信订阅号，更多有趣的性能优化点点滴滴。
-
-![fun](wechat.png)
-
+[![Star History Chart](https://api.star-history.com/svg?repos=everettjf/AppleTrace&type=Date)](https://star-history.com/#everettjf/AppleTrace&Date)
 
