@@ -21,7 +21,9 @@
 
 ## 🎯 What is AppleTrace?
 
-AppleTrace is an iOS tracing toolkit that captures your app's execution timeline and renders it with Chrome's tracing tools.
+AppleTrace is an iOS tracing toolkit
+
+![AppleTrace Demo](https://everettjf.github.io/stuff/appletrace/appletrace.gif) that captures your app's execution timeline and renders it with Chrome's tracing tools.
 
 ![AppleTrace Demo](image/appletrace-small.png)
 
