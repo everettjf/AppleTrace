@@ -257,22 +257,15 @@ sh go.sh /path/to/appletracedata
 
 ## 📊 Demo
 
-<div align="center">
-
 ### Interactive Demo
 
-<a href="sampledata/trace.html">
-  <img src="image/appletrace-small.png" alt="AppleTrace Demo" width="80%"/>
-</a>
+Explore a pre-recorded trace directly in Chrome:
 
-<p>
-  <em>Click the image above to explore an interactive trace demo in Chrome</em>
-</p>
+- 📂 **[Interactive Trace Demo](sampledata/trace.html)** - Open in Chrome to see AppleTrace in action
 
-### Pre-recorded Traces
-- 📂 [Interactive HTML Demo](sampledata/trace.html) - Open in Chrome for full interactivity
+![Demo Preview](image/appletrace-small.png)
 
-</div>
+*The trace visualization shows method execution timeline and call relationships.*
 
 ---
 
