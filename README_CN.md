@@ -13,7 +13,7 @@ AppleTrace 是一个面向 iOS 的方法追踪与调用链分析工具，可以�
 ## 当前 hook 状态
 
 - 稳定主线：手动 section 与延迟安装的 `objc_msgSend` direct hook 已有 simulator smoke test 覆盖。
-- 实验支线：sample 自身的嵌套 Objective-C 方法调用与跨线程 trace 现在也有自动化覆盖。
+- 实验支线：sample 自身的嵌套 Objective-C 方法调用、跨线程 trace，以及一个 10 参数 Objective-C 调用现在也有自动化覆盖。
 - 发布建议：把 direct hook 视为 arm64 预览能力，生产上仍可继续把手动埋点作为最低风险基线。
 
 ## 快速开始
@@ -85,7 +85,7 @@ python3 -m pytest tests
 其中：
 
 - `test_objc_msgsend_hook.sh` 是当前可发布的稳定验证链路。
-- `test_objc_msgsend_hook_experimental.sh` 会验证 sample 方法级 trace、跨线程事件以及 section 闭合情况。
+- `test_objc_msgsend_hook_experimental.sh` 会验证 sample 方法级 trace、跨线程事件、section 闭合情况，以及栈上传参的 Objective-C 调用。
 
 ## 说明
 

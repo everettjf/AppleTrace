@@ -149,6 +149,7 @@ if os.environ.get("APPLETRACE_EXPERIMENTAL_SCENARIO") == "1":
         "[AppDelegate]levelOne",
         "[AppDelegate]levelTwo",
         "[AppDelegate]levelThree",
+        "[AppDelegate]manyArgs:a2:a3:a4:a5:a6:a7:a8:a9:a10:",
         "[ThreadTest]goLoop",
     )
     if not any(name in text for name in expected):

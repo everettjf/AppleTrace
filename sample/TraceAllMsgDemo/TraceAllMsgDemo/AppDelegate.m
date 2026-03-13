@@ -106,6 +106,21 @@ static void APTAppendScenarioProgress(const char *step) {
     [[self class]staticMethod:@"hi"];
 }
 
+- (void)manyArgs:(NSString *)arg1
+              a2:(NSString *)arg2
+              a3:(NSString *)arg3
+              a4:(NSString *)arg4
+              a5:(NSString *)arg5
+              a6:(NSString *)arg6
+              a7:(NSString *)arg7
+              a8:(NSString *)arg8
+              a9:(NSString *)arg9
+             a10:(NSString *)arg10{
+    if (arg1.length + arg10.length == 0) {
+        NSLog(@"%@%@%@%@%@%@%@%@%@%@", arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
+    }
+}
+
 + (BOOL)staticMethod:(NSString*)words{
     usleep(100);
     return YES;
@@ -170,6 +185,17 @@ static void APTAppendScenarioProgress(const char *step) {
     APTAppendScenarioProgress("runTraceScenario:before-levelOne");
     [self levelOne];
     APTAppendScenarioProgress("runTraceScenario:after-levelOne");
+    [self manyArgs:@"1"
+                a2:@"2"
+                a3:@"3"
+                a4:@"4"
+                a5:@"5"
+                a6:@"6"
+                a7:@"7"
+                a8:@"8"
+                a9:@"9"
+               a10:@"10"];
+    APTAppendScenarioProgress("runTraceScenario:after-manyArgs");
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         APTAppendScenarioProgress("runTraceScenario:block2-entry");

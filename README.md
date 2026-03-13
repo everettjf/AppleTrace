@@ -46,7 +46,7 @@ AppleTrace is an iOS tracing toolkit
 ### Current Hook Status
 
 - Stable path: manual sections plus delayed `objc_msgSend` hook installation are covered by simulator smoke tests.
-- Experimental path: app-owned nested Objective-C sends are now covered by a second simulator trace scenario.
+- Experimental path: app-owned nested Objective-C sends, cross-thread events, and a 10-argument Objective-C call are now covered by a second simulator trace scenario.
 - Recommended release posture: ship the current direct hook as an arm64 preview, with manual sections still available as the lowest-risk baseline.
 
 ### Use Cases
@@ -231,7 +231,7 @@ void saferCppFunction() {
 ./scripts/test_objc_msgsend_hook_experimental.sh
 ```
 
-The first script validates the baseline delayed-install flow. The second script validates nested sample method tracing, including cross-thread events and explicit section pairing.
+The first script validates the baseline delayed-install flow. The second script validates nested sample method tracing, cross-thread events, explicit section pairing, and stack-passed Objective-C arguments.
 
 ### Runtime Controls
 
