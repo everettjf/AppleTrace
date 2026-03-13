@@ -113,6 +113,19 @@ print_experimental_progress() {
   fi
 }
 
+assert_experimental_progress() {
+  if [[ "${EXPERIMENTAL_SCENARIO}" != "1" || ! -f "${PROGRESS_LOG}" ]]; then
+    return 0
+  fi
+
+  if ! grep -q '^runTraceScenario:doubleSum=55.00$' "${PROGRESS_LOG}"; then
+    echo "Experimental progress log:"
+    cat "${PROGRESS_LOG}"
+    echo "Diagnostic: floating-point objc_msgSend arguments or return value were not preserved." >&2
+    return 1
+  fi
+}
+
 if [[ ! -d "${TRACE_DIR}" ]]; then
   echo "Trace directory not found: ${TRACE_DIR}" >&2
   exit 1
@@ -150,15 +163,19 @@ if os.environ.get("APPLETRACE_EXPERIMENTAL_SCENARIO") == "1":
         "[AppDelegate]levelTwo",
         "[AppDelegate]levelThree",
         "[AppDelegate]manyArgs:a2:a3:a4:a5:a6:a7:a8:a9:a10:",
+        "[AppDelegate]sumDoubles:b:c:d:e:f:g:h:i:j:",
         "[ThreadTest]goLoop",
     )
-    if not any(name in text for name in expected):
+    if not all(name in text for name in expected):
         raise SystemExit("trace missing experimental sample method events")
 for line in text.splitlines()[:10]:
     print(line)
 PY
     then
       print_experimental_progress
+      exit 1
+    fi
+    if ! assert_experimental_progress; then
       exit 1
     fi
     exit 0

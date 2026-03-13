@@ -76,6 +76,16 @@ static void APTAppendScenarioProgress(const char *step) {
     (void)write(STDERR_FILENO, "\n", 1);
 }
 
+static void APTAppendScenarioProgressDouble(const char *label, double value) {
+    char buffer[128];
+    int written = snprintf(buffer, sizeof(buffer), "%s=%.2f", label, value);
+    if (written <= 0 || written >= (int)sizeof(buffer)) {
+        return;
+    }
+
+    APTAppendScenarioProgress(buffer);
+}
+
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
@@ -119,6 +129,19 @@ static void APTAppendScenarioProgress(const char *step) {
     if (arg1.length + arg10.length == 0) {
         NSLog(@"%@%@%@%@%@%@%@%@%@%@", arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10);
     }
+}
+
+- (double)sumDoubles:(double)a1
+                  b:(double)a2
+                  c:(double)a3
+                  d:(double)a4
+                  e:(double)a5
+                  f:(double)a6
+                  g:(double)a7
+                  h:(double)a8
+                  i:(double)a9
+                  j:(double)a10{
+    return a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10;
 }
 
 + (BOOL)staticMethod:(NSString*)words{
@@ -196,6 +219,18 @@ static void APTAppendScenarioProgress(const char *step) {
                 a9:@"9"
                a10:@"10"];
     APTAppendScenarioProgress("runTraceScenario:after-manyArgs");
+    double sum = [self sumDoubles:1.0
+                                b:2.0
+                                c:3.0
+                                d:4.0
+                                e:5.0
+                                f:6.0
+                                g:7.0
+                                h:8.0
+                                i:9.0
+                                j:10.0];
+    APTAppendScenarioProgressDouble("runTraceScenario:doubleSum", sum);
+    APTAppendScenarioProgress("runTraceScenario:after-doubleSum");
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         APTAppendScenarioProgress("runTraceScenario:block2-entry");
