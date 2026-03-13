@@ -1,148 +1,506 @@
 /**
- *    Copyright 2017 jmpews
- *    Modified by everettjf for AppleTrace
+ * AppleTrace objc_msgSend tracing without HookZz.
  *
- *    Licensed under the Apache License, Version 2.0 (the "License");
- *    you may not use this file except in compliance with the License.
- *    You may obtain a copy of the License at
- *
- *        http://www.apache.org/licenses/LICENSE-2.0
- *
- *    Unless required by applicable law or agreed to in writing, software
- *    distributed under the License is distributed on an "AS IS" BASIS,
- *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *    See the License for the specific language governing permissions and
- *    limitations under the License.
+ * This arm64-only implementation uses fishhook-style symbol rebinding plus
+ * an assembly wrapper so objc_msgSend arguments and return registers survive
+ * the tracing callbacks.
  */
 
-#include "hookzz/hookzz.h"
 #import <Foundation/Foundation.h>
-#import <objc/runtime.h>
-#import <objc/message.h>
-#import <mach-o/dyld.h>
+#import <dispatch/dispatch.h>
 #import <dlfcn.h>
+#import <mach/mach.h>
+#import <mach-o/dyld.h>
+#import <mach-o/loader.h>
+#import <mach-o/nlist.h>
+#import <objc/message.h>
+#import <objc/runtime.h>
+#import <pthread.h>
+#import <stdio.h>
+#import <stdlib.h>
+#import <string.h>
+#import <sys/mman.h>
+
 #import "appletrace.h"
 
-//#define KDISABLE
+#if !defined(__arm64__)
+#error AppleTrace objc_msgSend hook currently supports arm64 only.
+#endif
 
-struct section_64 *zz_macho_get_section_64_via_name(struct mach_header_64 *header, char *sect_name);
-zpointer zz_macho_get_section_64_address_via_name(struct mach_header_64 *header, char *sect_name);
-struct segment_command_64 *zz_macho_get_segment_64_via_name(struct mach_header_64 *header, char *segment_name);
+typedef void (*APTObjcMsgSendFunction)(void);
 
-Class zz_macho_object_get_class(id object_addr);
+#ifdef __LP64__
+typedef struct mach_header_64 mach_header_t;
+typedef struct segment_command_64 segment_command_t;
+typedef struct section_64 section_t;
+typedef struct nlist_64 nlist_t;
+#define LC_SEGMENT_ARCH_DEPENDENT LC_SEGMENT_64
+#else
+typedef struct mach_header mach_header_t;
+typedef struct segment_command segment_command_t;
+typedef struct section section_t;
+typedef struct nlist nlist_t;
+#define LC_SEGMENT_ARCH_DEPENDENT LC_SEGMENT
+#endif
 
-zpointer log_sel_start_addr = 0;
-zpointer log_sel_end_addr = 0;
-zpointer log_class_start_addr = 0;
-zpointer log_class_end_addr = 0;
-char decollators[128] = {0};
+struct APTRebinding {
+    const char *name;
+    void *replacement;
+    void **replaced;
+};
 
-int LOG_ALL_SEL = 0;
-int LOG_ALL_CLASS = 0;
+struct APTRebindingsEntry {
+    struct APTRebinding *rebindings;
+    size_t count;
+    struct APTRebindingsEntry *next;
+};
 
-@interface HookZz : NSObject
+typedef struct APTTraceNode {
+    char *name;
+    struct APTTraceNode *previous;
+} APTTraceNode;
 
+static uintptr_t gLogSelectorStart = 0;
+static uintptr_t gLogSelectorEnd = 0;
+static uintptr_t gLogClassStart = 0;
+static uintptr_t gLogClassEnd = 0;
+static int gLogAllSelectors = 1;
+static int gLogAllClasses = 1;
+static __thread int gTraceGuard = 0;
+static pthread_key_t gTraceStackKey;
+static pthread_once_t gTraceStackKeyOnce = PTHREAD_ONCE_INIT;
+static dispatch_once_t gHookInstallOnce;
+static APTObjcMsgSendFunction apt_original_objc_msgSend = NULL;
+static struct APTRebindingsEntry *gRebindingsHead = NULL;
+static BOOL gHookInstalled = NO;
+
+__attribute__((used)) static void apt_before_objc_msgSend(id object, SEL selector);
+__attribute__((used)) static void apt_after_objc_msgSend(void);
+static void apt_configure_trace_ranges(void);
+static int apt_rebind_symbols(struct APTRebinding rebindings[], size_t count);
+extern void apt_objc_msgSend_wrapper(void);
+
+static BOOL apt_bool_from_environment(NSString *key, BOOL fallback) {
+    NSString *value = [[[NSProcessInfo processInfo] environment] objectForKey:key];
+    if (!value.length) {
+        return fallback;
+    }
+
+    NSString *normalized = value.lowercaseString;
+    return ![normalized isEqualToString:@"0"] &&
+           ![normalized isEqualToString:@"false"] &&
+           ![normalized isEqualToString:@"no"];
+}
+
+static BOOL apt_install_objc_msgsend_hook(void) {
+    __block BOOL installed = NO;
+    dispatch_once(&gHookInstallOnce, ^{
+        apt_configure_trace_ranges();
+        apt_original_objc_msgSend = (APTObjcMsgSendFunction)dlsym(RTLD_DEFAULT, "objc_msgSend");
+        if (apt_original_objc_msgSend == NULL) {
+            NSLog(@"AppleTrace: failed to resolve objc_msgSend before rebinding");
+            return;
+        }
+
+        struct APTRebinding rebinding = {
+            .name = "objc_msgSend",
+            .replacement = (void *)apt_objc_msgSend_wrapper,
+            .replaced = (void **)&apt_original_objc_msgSend,
+        };
+
+        int status = apt_rebind_symbols(&rebinding, 1);
+        if (status == 0 && apt_original_objc_msgSend != NULL) {
+            gHookInstalled = YES;
+        }
+    });
+
+    installed = gHookInstalled;
+    return installed;
+}
+
+__asm__(
+".text\n"
+".align 2\n"
+".globl _apt_objc_msgSend_wrapper\n"
+"_apt_objc_msgSend_wrapper:\n"
+"sub sp, sp, #0x140\n"
+"stp x29, x30, [sp, #0x130]\n"
+"mov x29, sp\n"
+"stp x0, x1, [sp, #0x00]\n"
+"stp x2, x3, [sp, #0x10]\n"
+"stp x4, x5, [sp, #0x20]\n"
+"stp x6, x7, [sp, #0x30]\n"
+"str x8, [sp, #0x40]\n"
+"stp q0, q1, [sp, #0x50]\n"
+"stp q2, q3, [sp, #0x70]\n"
+"stp q4, q5, [sp, #0x90]\n"
+"stp q6, q7, [sp, #0xB0]\n"
+"bl _apt_before_objc_msgSend\n"
+"ldp x0, x1, [sp, #0x00]\n"
+"ldp x2, x3, [sp, #0x10]\n"
+"ldp x4, x5, [sp, #0x20]\n"
+"ldp x6, x7, [sp, #0x30]\n"
+"ldr x8, [sp, #0x40]\n"
+"ldp q0, q1, [sp, #0x50]\n"
+"ldp q2, q3, [sp, #0x70]\n"
+"ldp q4, q5, [sp, #0x90]\n"
+"ldp q6, q7, [sp, #0xB0]\n"
+"adrp x16, _apt_original_objc_msgSend@PAGE\n"
+"ldr x16, [x16, _apt_original_objc_msgSend@PAGEOFF]\n"
+"blr x16\n"
+"stp x0, x1, [sp, #0x00]\n"
+"stp q0, q1, [sp, #0x50]\n"
+"stp q2, q3, [sp, #0x70]\n"
+"bl _apt_after_objc_msgSend\n"
+"ldp x0, x1, [sp, #0x00]\n"
+"ldp q0, q1, [sp, #0x50]\n"
+"ldp q2, q3, [sp, #0x70]\n"
+"ldp x29, x30, [sp, #0x130]\n"
+"add sp, sp, #0x140\n"
+"ret\n"
+);
+
+static void apt_free_trace_stack(void *pointer) {
+    APTTraceNode *node = (APTTraceNode *)pointer;
+    while (node) {
+        APTTraceNode *previous = node->previous;
+        free(node->name);
+        free(node);
+        node = previous;
+    }
+}
+
+static void apt_make_trace_stack_key(void) {
+    pthread_key_create(&gTraceStackKey, apt_free_trace_stack);
+}
+
+static APTTraceNode *apt_trace_stack_top(void) {
+    pthread_once(&gTraceStackKeyOnce, apt_make_trace_stack_key);
+    return (APTTraceNode *)pthread_getspecific(gTraceStackKey);
+}
+
+static void apt_trace_stack_set(APTTraceNode *node) {
+    pthread_once(&gTraceStackKeyOnce, apt_make_trace_stack_key);
+    pthread_setspecific(gTraceStackKey, node);
+}
+
+static void apt_trace_stack_push(char *name) {
+    APTTraceNode *node = malloc(sizeof(APTTraceNode));
+    if (!node) {
+        free(name);
+        return;
+    }
+
+    node->name = name;
+    node->previous = apt_trace_stack_top();
+    apt_trace_stack_set(node);
+}
+
+static APTTraceNode *apt_trace_stack_pop(void) {
+    APTTraceNode *node = apt_trace_stack_top();
+    if (node) {
+        apt_trace_stack_set(node->previous);
+    }
+    return node;
+}
+
+static struct section_64 *apt_find_section(struct mach_header_64 *header, const char *section_name) {
+    struct load_command *command = (struct load_command *)((uintptr_t)header + sizeof(struct mach_header_64));
+    for (uint32_t command_index = 0; command_index < header->ncmds; ++command_index) {
+        if (command->cmd == LC_SEGMENT_64) {
+            struct segment_command_64 *segment = (struct segment_command_64 *)command;
+            struct section_64 *section = (struct section_64 *)((uintptr_t)segment + sizeof(struct segment_command_64));
+            for (uint32_t section_index = 0; section_index < segment->nsects; ++section_index) {
+                if (strncmp(section[section_index].sectname, section_name, sizeof(section[section_index].sectname)) == 0) {
+                    return &section[section_index];
+                }
+            }
+        }
+        command = (struct load_command *)((uintptr_t)command + command->cmdsize);
+    }
+    return NULL;
+}
+
+static void apt_configure_trace_ranges(void) {
+    gLogAllSelectors = apt_bool_from_environment(@"APPLETRACE_TRACE_ALL_SELECTORS", YES);
+    gLogAllClasses = apt_bool_from_environment(@"APPLETRACE_TRACE_ALL_CLASSES", YES);
+
+    const struct mach_header *header = _dyld_get_image_header(0);
+    if (!header || header->magic != MH_MAGIC_64) {
+        return;
+    }
+
+    intptr_t slide = _dyld_get_image_vmaddr_slide(0);
+    struct section_64 *selector_section = apt_find_section((struct mach_header_64 *)header, "__objc_methname");
+    if (selector_section) {
+        gLogSelectorStart = (uintptr_t)(slide + selector_section->addr);
+        gLogSelectorEnd = gLogSelectorStart + selector_section->size;
+    }
+
+    struct section_64 *class_section = apt_find_section((struct mach_header_64 *)header, "__objc_data");
+    if (class_section) {
+        gLogClassStart = (uintptr_t)(slide + class_section->addr);
+        gLogClassEnd = gLogClassStart + class_section->size;
+    }
+}
+
+static BOOL apt_selector_should_trace(const char *selector_name) {
+    if (!selector_name) {
+        return NO;
+    }
+    if (gLogAllSelectors) {
+        return YES;
+    }
+    if (gLogSelectorStart == 0 || gLogSelectorEnd == 0) {
+        return YES;
+    }
+
+    uintptr_t pointer = (uintptr_t)selector_name;
+    return pointer >= gLogSelectorStart && pointer <= gLogSelectorEnd;
+}
+
+static BOOL apt_class_should_trace(Class cls) {
+    if (!cls) {
+        return NO;
+    }
+    if (gLogAllClasses) {
+        return YES;
+    }
+    if (gLogClassStart == 0 || gLogClassEnd == 0) {
+        return YES;
+    }
+
+    uintptr_t pointer = (uintptr_t)cls;
+    return pointer >= gLogClassStart && pointer <= gLogClassEnd;
+}
+
+static char *apt_copy_trace_name(id object, SEL selector) {
+    if (!object || !selector) {
+        return NULL;
+    }
+
+    const char *selector_name = sel_getName(selector);
+    if (!apt_selector_should_trace(selector_name)) {
+        return NULL;
+    }
+
+    Class cls = object_getClass(object);
+    if (!apt_class_should_trace(cls)) {
+        return NULL;
+    }
+
+    const char *class_name = class_getName(cls);
+    if (!class_name || !selector_name) {
+        return NULL;
+    }
+
+    size_t required = strlen(class_name) + strlen(selector_name) + 4;
+    char *trace_name = malloc(required);
+    if (!trace_name) {
+        return NULL;
+    }
+
+    snprintf(trace_name, required, "[%s]%s", class_name, selector_name);
+    return trace_name;
+}
+
+static void apt_before_objc_msgSend(id object, SEL selector) {
+    if (gTraceGuard != 0) {
+        return;
+    }
+
+    gTraceGuard += 1;
+    char *trace_name = apt_copy_trace_name(object, selector);
+    if (trace_name) {
+        apt_trace_stack_push(trace_name);
+        APTBeginSection(trace_name);
+    }
+    gTraceGuard -= 1;
+}
+
+static void apt_after_objc_msgSend(void) {
+    if (gTraceGuard != 0) {
+        return;
+    }
+
+    gTraceGuard += 1;
+    APTTraceNode *node = apt_trace_stack_pop();
+    if (node) {
+        APTEndSection(node->name);
+        free(node->name);
+        free(node);
+    }
+    gTraceGuard -= 1;
+}
+
+static int apt_prepend_rebindings(struct APTRebindingsEntry **head,
+                                  struct APTRebinding rebindings[],
+                                  size_t count) {
+    struct APTRebindingsEntry *entry = malloc(sizeof(struct APTRebindingsEntry));
+    if (!entry) {
+        return -1;
+    }
+
+    entry->rebindings = malloc(sizeof(struct APTRebinding) * count);
+    if (!entry->rebindings) {
+        free(entry);
+        return -1;
+    }
+
+    memcpy(entry->rebindings, rebindings, sizeof(struct APTRebinding) * count);
+    entry->count = count;
+    entry->next = *head;
+    *head = entry;
+    return 0;
+}
+
+static void apt_perform_rebinding_with_section(struct APTRebindingsEntry *rebindings,
+                                               section_t *section,
+                                               intptr_t slide,
+                                               nlist_t *symtab,
+                                               char *strtab,
+                                               uint32_t *indirect_symtab) {
+    uint32_t *indirect_symbol_indices = indirect_symtab + section->reserved1;
+    void **indirect_symbol_bindings = (void **)((uintptr_t)slide + section->addr);
+    size_t entry_count = section->size / sizeof(void *);
+
+    vm_protect(mach_task_self(),
+               (vm_address_t)indirect_symbol_bindings,
+               (vm_size_t)section->size,
+               0,
+               VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+
+    for (size_t index = 0; index < entry_count; index++) {
+        uint32_t symtab_index = indirect_symbol_indices[index];
+        if (symtab_index == INDIRECT_SYMBOL_ABS ||
+            symtab_index == INDIRECT_SYMBOL_LOCAL ||
+            symtab_index == (INDIRECT_SYMBOL_LOCAL | INDIRECT_SYMBOL_ABS)) {
+            continue;
+        }
+
+        char *symbol_name = strtab + symtab[symtab_index].n_un.n_strx;
+        if (!symbol_name || symbol_name[0] != '_') {
+            continue;
+        }
+
+        struct APTRebindingsEntry *entry = rebindings;
+        while (entry) {
+            for (size_t rebinding_index = 0; rebinding_index < entry->count; rebinding_index++) {
+                struct APTRebinding *rebinding = &entry->rebindings[rebinding_index];
+                if (strcmp(&symbol_name[1], rebinding->name) == 0) {
+                    if (rebinding->replaced && *(rebinding->replaced) == NULL) {
+                        *(rebinding->replaced) = indirect_symbol_bindings[index];
+                    }
+                    indirect_symbol_bindings[index] = rebinding->replacement;
+                    goto next_symbol;
+                }
+            }
+            entry = entry->next;
+        }
+
+    next_symbol:
+        continue;
+    }
+
+    // Keep the rebinding page writable after patching. Restoring it to a guessed
+    // read-only protection can corrupt unrelated mutable globals that share the
+    // same __DATA page, which caused simulator startup crashes.
+}
+
+static void apt_rebind_symbols_for_image(const struct mach_header *header,
+                                         intptr_t slide,
+                                         struct APTRebindingsEntry *rebindings) {
+    Dl_info info;
+    if (!header || !rebindings || !dladdr(header, &info)) {
+        return;
+    }
+    if (info.dli_fname && strstr(info.dli_fname, "/appletrace.framework/") != NULL) {
+        return;
+    }
+
+    segment_command_t *linkedit_segment = NULL;
+    struct symtab_command *symtab_command = NULL;
+    struct dysymtab_command *dysymtab_command = NULL;
+
+    uintptr_t command_cursor = (uintptr_t)header + sizeof(mach_header_t);
+    for (uint32_t index = 0; index < header->ncmds; index++) {
+        struct load_command *command = (struct load_command *)command_cursor;
+        if (command->cmd == LC_SEGMENT_ARCH_DEPENDENT) {
+            segment_command_t *segment = (segment_command_t *)command;
+            if (strcmp(segment->segname, SEG_LINKEDIT) == 0) {
+                linkedit_segment = segment;
+            }
+        } else if (command->cmd == LC_SYMTAB) {
+            symtab_command = (struct symtab_command *)command;
+        } else if (command->cmd == LC_DYSYMTAB) {
+            dysymtab_command = (struct dysymtab_command *)command;
+        }
+        command_cursor += command->cmdsize;
+    }
+
+    if (!symtab_command || !dysymtab_command || !linkedit_segment) {
+        return;
+    }
+
+    uintptr_t linkedit_base = (uintptr_t)slide + linkedit_segment->vmaddr - linkedit_segment->fileoff;
+    nlist_t *symtab = (nlist_t *)(linkedit_base + symtab_command->symoff);
+    char *strtab = (char *)(linkedit_base + symtab_command->stroff);
+    uint32_t *indirect_symtab = (uint32_t *)(linkedit_base + dysymtab_command->indirectsymoff);
+
+    command_cursor = (uintptr_t)header + sizeof(mach_header_t);
+    for (uint32_t index = 0; index < header->ncmds; index++) {
+        struct load_command *command = (struct load_command *)command_cursor;
+        if (command->cmd == LC_SEGMENT_ARCH_DEPENDENT) {
+            segment_command_t *segment = (segment_command_t *)command;
+            BOOL is_data_segment =
+                strcmp(segment->segname, SEG_DATA) == 0 ||
+                strcmp(segment->segname, "__DATA_CONST") == 0;
+            if (is_data_segment) {
+                for (uint32_t section_index = 0; section_index < segment->nsects; section_index++) {
+                    section_t *section = (section_t *)((uintptr_t)segment + sizeof(segment_command_t)) + section_index;
+                    uint32_t type = section->flags & SECTION_TYPE;
+                    if (type == S_LAZY_SYMBOL_POINTERS || type == S_NON_LAZY_SYMBOL_POINTERS) {
+                        apt_perform_rebinding_with_section(rebindings, section, slide, symtab, strtab, indirect_symtab);
+                    }
+                }
+            }
+        }
+        command_cursor += command->cmdsize;
+    }
+}
+
+static int apt_rebind_symbols(struct APTRebinding rebindings[], size_t count) {
+    int failure = apt_prepend_rebindings(&gRebindingsHead, rebindings, count);
+    if (failure < 0) {
+        return failure;
+    }
+
+    for (uint32_t image_index = 0; image_index < _dyld_image_count(); image_index++) {
+        apt_rebind_symbols_for_image(_dyld_get_image_header(image_index),
+                                     _dyld_get_image_vmaddr_slide(image_index),
+                                     gRebindingsHead);
+    }
+
+    return 0;
+}
+
+@interface APTObjCMsgSendHook : NSObject
 @end
 
-@implementation HookZz
+@implementation APTObjCMsgSendHook
 
 + (void)load {
-    const struct mach_header *header = _dyld_get_image_header(0);
-    struct segment_command_64 *seg_cmd_64_text = zz_macho_get_segment_64_via_name((struct mach_header_64 *)header, (char *)"__TEXT");
-    zsize slide = (zaddr)header - (zaddr)seg_cmd_64_text->vmaddr;
-    struct section_64 *sect_64_1 = zz_macho_get_section_64_via_name((struct mach_header_64 *)header, (char *)"__objc_methname");
-    log_sel_start_addr = slide + (zaddr)sect_64_1->addr;
-    log_sel_end_addr = log_sel_start_addr + sect_64_1->size;
-    
-    struct section_64 *sect_64_2 = zz_macho_get_section_64_via_name((struct mach_header_64 *)header, (char *)"__objc_data");
-    log_class_start_addr = slide + (zaddr)sect_64_2->addr;
-    log_class_end_addr = log_class_start_addr + sect_64_2->size;
-    
-    
-    [self hook_objc_msgSend];
-}
-
-void objc_msgSend_pre_call(RegState *rs, ThreadStack *threadstack, CallStack *callstack) {
-    char *sel_name = (char *)rs->general.regs.x1;
-    
-    // The first filter algo
-    if(!(LOG_ALL_SEL || (sel_name > log_sel_start_addr && sel_name < log_sel_end_addr))) {
-        return;
-    }
-    
-    // bad code! correct-ref: https://github.com/DavidGoldman/InspectiveC/blob/299cef1c40e8a165c697f97bcd317c5cfa55c4ba/logging.mm#L27
-    void *object_addr = (void *)rs->general.regs.x0;
-    void *class_addr = zz_macho_object_get_class((id)object_addr);
-    if(!class_addr)
-        return;
-    
-    void *super_class_addr = class_getSuperclass(class_addr);
-    
-    // The second filter algo
-    if(!(LOG_ALL_CLASS
-       || (
-           0
-//              || (object_addr > log_class_start_addr && object_addr < log_class_end_addr)
-          || (class_addr >= log_class_start_addr && class_addr <= log_class_end_addr)
-//              || (super_class_addr > log_class_start_addr && super_class_addr < log_class_end_addr)
-          )
-       )) {
-        return;
-    }
-    
-    memset(decollators, 45, 128);
-    if(threadstack->size * 3 >= 128)
-        return;
-    decollators[threadstack->size * 3] = '\0';
-    const char *class_name = object_getClassName(object_addr);
-    
-    unsigned long repl_len = strlen(class_name) + strlen(sel_name) + 10;
-    char *repl_name = malloc(repl_len);
-    snprintf(repl_name, repl_len, "[%s]%s",class_name,sel_name);
-    STACK_SET(callstack, "repl_name", repl_name, char*);
-    
-    printf("pre %s\n",repl_name);
-    APTBeginSection(repl_name);
-}
-
-void objc_msgSend_post_call(RegState *rs, ThreadStack *threadstack, CallStack *callstack) {
-    if(STACK_CHECK_KEY(callstack, "is_ignored"))
-        return;
-
-    if(STACK_CHECK_KEY(callstack, "repl_name")){
-        char *repl_name = STACK_GET(callstack, "repl_name", char*);
-//        NSLog(@"post %s",repl_name);
-        APTEndSection(repl_name);
-        
-        free(repl_name);
+    if (apt_bool_from_environment(@"APPLETRACE_AUTO_HOOK_OBJC_MSGSEND", NO)) {
+        apt_install_objc_msgsend_hook();
     }
 }
 
-+ (void)hook_objc_msgSend {
-    NSLog(@"apple trace loaded");
-
-    ZzBuildHook((void *)objc_msgSend, NULL, NULL, objc_msgSend_pre_call, objc_msgSend_post_call,true);
-    ZzEnableHook((void *)objc_msgSend);
-}
 @end
 
-Class zz_macho_object_get_class(id object_addr) {
-    if(!object_addr)
-        return NULL;
-#if 0
-    if(object_isClass(object_addr)) {
-        return object_addr;
-    } else {
-        return object_getClass(object_addr);
-    }
-#elif 1
-    return object_getClass(object_addr);
-#elif 0
-    Class kind = object_getClass(object_addr);
-    
-    if (class_isMetaClass(kind))
-        return object_addr;
-    return kind;
-#endif
+BOOL APTInstallObjcMsgSendHook(void) {
+    return apt_install_objc_msgsend_hook();
 }
 
+BOOL APTIsObjcMsgSendHookInstalled(void) {
+    return gHookInstalled;
+}

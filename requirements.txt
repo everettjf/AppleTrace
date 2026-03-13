@@ -1,0 +1,2 @@
+# Optional Python tooling for local development and testing.
+pytest>=8.0,<9.0

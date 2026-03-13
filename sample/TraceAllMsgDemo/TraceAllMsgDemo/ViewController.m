@@ -25,14 +25,12 @@
 }
 
 - (void)hello{
-    
-    sleep(200);
+    usleep(1000);
     [self world];
 }
 
 - (void)world{
-    
-    sleep(100);
+    usleep(1000);
 }
 
 

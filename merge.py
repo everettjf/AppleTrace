@@ -1,71 +1,117 @@
-#!/usr/bin/env python
-#
-# created by everettjf 20170915
-#
-# Input  : Path of directory , which include raw *.ostrace files.
-# Output : Path of output json file , which will be given to catapult.
-#
+#!/usr/bin/env python3
+"""Merge AppleTrace raw trace fragments into a Chrome trace JSON array."""
 
-import os
-from optparse import OptionParser
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from pathlib import Path
+from typing import Iterable, List
 
 
-class Merger:
-    def __init__(self,dir):
-        self.dir = dir
-        self.output_path = os.path.join(dir,"trace.json")
+TRACE_FILE_RE = re.compile(r"^trace(?:_(\d+))?\.appletrace$")
 
-        if os.path.exists(self.output_path):
-            os.remove(self.output_path)
 
-        self.output = open(self.output_path,'w')
-        self.output.write('[\n')
+def list_trace_files(directory: Path) -> List[Path]:
+    """Return trace fragments sorted by their numeric suffix."""
+    trace_files = []
+    for path in directory.iterdir():
+        if not path.is_file():
+            continue
 
-    def append(self,line):
-        line = line.strip('\n')
-        #print len(line),' : ', line
-        self.output.write(line)
-        self.output.write(',\n')
+        match = TRACE_FILE_RE.match(path.name)
+        if not match:
+            continue
 
-    def merge_file(self,file_path):
-        print file_path
+        suffix = int(match.group(1) or 0)
+        trace_files.append((suffix, path))
 
-        file = open(file_path)
-        while True:
-            line = file.readline()
-            if not line or len(line) == 0:
-                break
-            if line[0] != '{':
-                break
-            self.append(line)
+    return [path for _, path in sorted(trace_files, key=lambda item: item[0])]
 
-    def run(self):
-        i = 0
-        while True:
-            if i == 0:
-                file_path = os.path.join(self.dir,"trace.appletrace")
-            else:
-                file_path = os.path.join(self.dir,"trace_%d.appletrace" % (i))
 
-            if not os.path.exists(file_path):
-                break
+def iter_events(trace_files: Iterable[Path]) -> Iterable[dict]:
+    """Yield valid JSON events from AppleTrace fragment files."""
+    for file_path in trace_files:
+        print(file_path)
+        with file_path.open("r", encoding="utf-8") as handle:
+            for line_number, line in enumerate(handle, start=1):
+                raw_line = line.strip()
+                if not raw_line:
+                    continue
 
-            self.merge_file(file_path)
-            i+=1
+                if not raw_line.startswith("{"):
+                    break
 
-def main():
-    p = OptionParser('usage: %prog -d <directory_path>')
-    p.add_option("-d","--dir",dest="dir",help="directory path that include all ostrace files")
+                try:
+                    event = json.loads(raw_line)
+                except json.JSONDecodeError as exc:
+                    raise ValueError(
+                        f"Invalid JSON in {file_path}:{line_number}: {exc.msg}"
+                    ) from exc
 
-    (options,args) = p.parse_args()
-    if options.dir is None:
-        p.print_help();
-        return
+                if not isinstance(event, dict):
+                    raise ValueError(
+                        f"Unexpected non-object event in {file_path}:{line_number}"
+                    )
 
-    if options.dir:
-        # merge into json
-        m = Merger(options.dir)
-        m.run()
+                yield event
 
-if __name__ == '__main__':
-    main()
+
+def merge_trace_directory(directory: Path, output_path: Path | None = None) -> Path:
+    """Merge all trace fragments under a directory into `trace.json`."""
+    if not directory.exists():
+        raise FileNotFoundError(f"Trace directory does not exist: {directory}")
+    if not directory.is_dir():
+        raise NotADirectoryError(f"Trace path is not a directory: {directory}")
+
+    trace_files = list_trace_files(directory)
+    if not trace_files:
+        raise FileNotFoundError(f"No trace fragments found in {directory}")
+
+    target = output_path or directory / "trace.json"
+    events = list(iter_events(trace_files))
+    with target.open("w", encoding="utf-8") as handle:
+        json.dump(events, handle, ensure_ascii=False, separators=(",", ":"))
+        handle.write("\n")
+
+    return target
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Merge AppleTrace .appletrace fragments into trace.json."
+    )
+    parser.add_argument(
+        "-d",
+        "--dir",
+        dest="directory",
+        required=True,
+        help="Directory containing trace.appletrace fragments.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        dest="output",
+        help="Optional output JSON path. Defaults to <dir>/trace.json.",
+    )
+    return parser
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    directory = Path(args.directory).expanduser().resolve()
+    output_path = Path(args.output).expanduser().resolve() if args.output else None
+
+    try:
+        merged_path = merge_trace_directory(directory, output_path)
+    except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
+        print(f"error: {exc}")
+        return 1
+
+    print(f"Wrote merged trace to {merged_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

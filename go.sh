@@ -1,29 +1,17 @@
 #!/bin/bash
+set -euo pipefail
 
-path=$1
-
-if [ -z $path ];then
+if [ "$#" -lt 1 ]; then
   echo "usage: sh go.sh <path to appletracedata directory>"
-  exit
+  exit 1
 fi
 
-basepath=$(cd `dirname $0`; pwd)
-echo $basepath
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+TRACE_DIR="$1"
 
-echo "begin"
+echo "AppleTrace export starting"
+echo "trace dir: $TRACE_DIR"
 
-echo "executing python merge.py -d $path"
-python $basepath/merge.py -d $path
+python3 "$SCRIPT_DIR/scripts/appletrace_cli.py" all "$TRACE_DIR" --open
 
-if [ -d "catapult" ]; then
-    echo "executing catapult/tracing/bin/trace2html $path/trace.json --output=$path/trace.html"
-    python $basepath/catapult/tracing/bin/trace2html $path/trace.json --output=$path/trace.html
-
-    echo "opening $path/trace.html"
-    open $path/trace.html
-else
-    echo "Open chrome://tracing in Chrome Browser, and drop $path/trace.json in."
-fi
-
-echo ""
-echo "Enjoy :)"
+echo "AppleTrace export finished"

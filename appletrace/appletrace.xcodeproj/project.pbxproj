@@ -12,29 +12,11 @@
 		D1CC5A382185B70800726C5E /* hook_objc_msgSend.m in Sources */ = {isa = PBXBuildFile; fileRef = D1CC5A372185B70800726C5E /* hook_objc_msgSend.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 /* End PBXBuildFile section */
 
-/* Begin PBXContainerItemProxy section */
-		D1CC5A332185B6B700726C5E /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D1CC5A2F2185B6B700726C5E /* HookZz.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = 865F5FD01F6123390000622F;
-			remoteInfo = HookZz;
-		};
-		D1CC5A352185B6BE00726C5E /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D1CC5A2F2185B6B700726C5E /* HookZz.xcodeproj */;
-			proxyType = 1;
-			remoteGlobalIDString = 865F5FCF1F6123390000622F;
-			remoteInfo = HookZz;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
 		D17E997F1F72DF300034AAE7 /* appletrace.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = appletrace.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D17E99831F72DF300034AAE7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D17E998B1F72DFC20034AAE7 /* appletrace.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = appletrace.h; sourceTree = "<group>"; };
 		D17E998C1F72DFC20034AAE7 /* appletrace.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = appletrace.mm; sourceTree = "<group>"; };
-		D1CC5A2F2185B6B700726C5E /* HookZz.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = HookZz.xcodeproj; path = ../hookzz/ios/HookZz.xcodeproj; sourceTree = "<group>"; };
 		D1CC5A372185B70800726C5E /* hook_objc_msgSend.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = hook_objc_msgSend.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -52,7 +34,6 @@
 		D17E99751F72DF2F0034AAE7 = {
 			isa = PBXGroup;
 			children = (
-				D1CC5A2F2185B6B700726C5E /* HookZz.xcodeproj */,
 				D17E99811F72DF300034AAE7 /* appletrace */,
 				D17E99801F72DF300034AAE7 /* Products */,
 			);
@@ -93,14 +74,6 @@
 			path = objc;
 			sourceTree = "<group>";
 		};
-		D1CC5A302185B6B700726C5E /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				D1CC5A342185B6B700726C5E /* HookZz.framework */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -127,7 +100,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				D1CC5A362185B6BE00726C5E /* PBXTargetDependency */,
 			);
 			name = appletrace;
 			productName = appletrace;
@@ -161,10 +133,6 @@
 			productRefGroup = D17E99801F72DF300034AAE7 /* Products */;
 			projectDirPath = "";
 			projectReferences = (
-				{
-					ProductGroup = D1CC5A302185B6B700726C5E /* Products */;
-					ProjectRef = D1CC5A2F2185B6B700726C5E /* HookZz.xcodeproj */;
-				},
 			);
 			projectRoot = "";
 			targets = (
@@ -172,16 +140,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXReferenceProxy section */
-		D1CC5A342185B6B700726C5E /* HookZz.framework */ = {
-			isa = PBXReferenceProxy;
-			fileType = wrapper.framework;
-			path = HookZz.framework;
-			remoteRef = D1CC5A332185B6B700726C5E /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-/* End PBXReferenceProxy section */
 
 /* Begin PBXResourcesBuildPhase section */
 		D17E997D1F72DF300034AAE7 /* Resources */ = {
@@ -205,13 +163,6 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXTargetDependency section */
-		D1CC5A362185B6BE00726C5E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = HookZz;
-			targetProxy = D1CC5A352185B6BE00726C5E /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		D17E99851F72DF300034AAE7 /* Debug */ = {
@@ -340,7 +291,7 @@
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = appletrace/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.everettjf.appletrace;
@@ -362,7 +313,7 @@
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = appletrace/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.everettjf.appletrace;

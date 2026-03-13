@@ -2,17 +2,42 @@
 //  appletrace.h
 //  appletrace
 //
-//  Created by everettjf on 2017/9/12.
-//  Copyright © 2017年 everettjf. All rights reserved.
-//
-
 
 #import <Foundation/Foundation.h>
 
-FOUNDATION_EXPORT void APTBeginSection(const char* name);
-FOUNDATION_EXPORT void APTEndSection(const char* name);
+FOUNDATION_EXPORT void APTBeginSection(const char *name);
+FOUNDATION_EXPORT void APTEndSection(const char *name);
 FOUNDATION_EXPORT void APTSyncWait(void);
+FOUNDATION_EXPORT void APTFlush(void);
+FOUNDATION_EXPORT void APTSetEnabled(BOOL enabled);
+FOUNDATION_EXPORT BOOL APTIsEnabled(void);
+FOUNDATION_EXPORT const char *APTGetTraceDirectory(void);
+FOUNDATION_EXPORT BOOL APTInstallObjcMsgSendHook(void);
+FOUNDATION_EXPORT BOOL APTIsObjcMsgSendHookInstalled(void);
 
-// Objective C class method
-#define APTBegin APTBeginSection([NSString stringWithFormat:@"[%@]%@",self,NSStringFromSelector(_cmd)].UTF8String)
-#define APTEnd APTEndSection([NSString stringWithFormat:@"[%@]%@",self,NSStringFromSelector(_cmd)].UTF8String)
+#ifdef __OBJC__
+#define APTCurrentSectionName [NSString stringWithFormat:@"[%@ %@]", NSStringFromClass([self class]), NSStringFromSelector(_cmd)].UTF8String
+#define APTBegin APTBeginSection(APTCurrentSectionName)
+#define APTEnd APTEndSection(APTCurrentSectionName)
+#endif
+
+#ifdef __cplusplus
+namespace appletrace {
+class ScopedSection {
+public:
+    explicit ScopedSection(const char *name) : name_(name) {
+        APTBeginSection(name_);
+    }
+
+    ~ScopedSection() {
+        APTEndSection(name_);
+    }
+
+private:
+    const char *name_;
+};
+}  // namespace appletrace
+
+#define APT_SCOPE_SECTION_IMPL(name, line) appletrace::ScopedSection __apt_scoped_section_##line(name)
+#define APTScopeSection(name) APT_SCOPE_SECTION_IMPL(name, __LINE__)
+#endif

@@ -5,7 +5,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 ## Project Overview
 - AppleTrace instruments iOS apps so you can analyze performance hotspots with Chrome's tracing viewer.
 - Developers can either add manual `APTBeginSection` / `APTEndSection` markers or hook every `objc_msgSend` via HookZz (arm64 only).
-- `merge.py`, Catapult's `trace2html`, and the helper `go.sh` script transform sandbox data into `trace.json` and `trace.html`.
+- `merge.py`, `scripts/appletrace_cli.py`, Catapult's `trace2html`, and the helper `go.sh` script transform sandbox data into `trace.json` and `trace.html`.
 - Releases bundle a loader tweaked for arm64, but the source can be rebuilt via the included Xcode projects.
 
 ## Repository Map
@@ -14,7 +14,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 - `sample/ManualSectionDemo` and `sample/TraceAllMsgDemo` — Xcode samples that show manual instrumentation and HookZz-based tracing.
 - `springboard/AppleTraceSpringBoard` — Additional loader project for SpringBoard-focused experiments.
 - `hookzz/` — Embedded HookZz dependency used to hook `objc_msgSend`.
-- `go.sh`, `merge.py`, `get_catapult.sh` — Scripts for merging trace files, converting them with Catapult, and downloading Catapult.
+- `go.sh`, `merge.py`, `scripts/appletrace_cli.py`, `get_catapult.sh` — Scripts for merging trace files, converting them with Catapult, and downloading Catapult.
 - `sampledata/` — Ready-made traces (`trace.html`) for verifying the visualization pipeline.
 - `release/` — Notes and artifacts for the prebuilt loader (arm64 only).
 - `image/`, `wechat.png` — Documentation assets.
@@ -22,7 +22,8 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 ## Running the Project Locally
 1. **Clone & prerequisites**
    - `git clone https://github.com/everettjf/AppleTrace.git`
-   - Install Xcode, Python 2.x, Chrome, LLDB, and `ldid` (for re-signing loader builds).
+   - Install Xcode, Python 3, Chrome, LLDB, and `ldid` (for re-signing loader builds).
+   - Optional: `python3 -m pip install -r requirements.txt` for local test tooling.
    - Run `sh get_catapult.sh` once to fetch Catapult (`catapult/tracing/bin/trace2html` must exist before generating HTML reports).
 2. **Build instrumentation**
    - For manual tracing, open `appletrace/appletrace.xcodeproj`, build the framework, and embed it into your target (see `sample/ManualSectionDemo`).
@@ -31,17 +32,20 @@ This reference is for AI agents and contributors working inside the AppleTrace r
    - Run the instrumented app; trace segments are written to `<app sandbox>/Library/appletracedata`.
    - Pull the folder from the Simulator or device.
 4. **Process traces**
-   - Quick path: `sh go.sh <path-to-appletracedata>` to run `merge.py`, `trace2html`, and open Chrome.
-   - Manual path: `python merge.py -d <path>` followed by `python catapult/tracing/bin/trace2html <path>/trace.json --output=<path>/trace.html` or drop `trace.json` onto `chrome://tracing`.
+   - Quick path: `sh go.sh <path-to-appletracedata>` to run merge + `trace2html` and open Chrome.
+   - Manual path: `python3 merge.py -d <path>` followed by `python3 catapult/tracing/bin/trace2html <path>/trace.json --output=<path>/trace.html`.
+   - Unified path: `python3 scripts/appletrace_cli.py all <path-to-appletracedata> --open`.
 
 ## Testing
-- There are no automated tests. Validation is manual:
+- Automated coverage exists for the Python trace merge pipeline:
+  - `python3 -m pytest tests`
+- Runtime and loader validation is still manual:
   - Run the sample projects and confirm the generated `trace.json`/`trace.html`.
   - Inspect traces in Chrome to ensure new instrumentation appears as expected.
   - When touching the loader or HookZz code, test on a real arm64 device under LLDB.
 
 ## Linting & Formatting
-- No dedicated lint/format pipeline exists. Follow existing Objective-C/C/C++/Python conventions in the repo (clang/Xcode defaults, 4-space indentation in Python).
+- No dedicated Objective-C lint/format pipeline exists. Follow existing Objective-C/C/C++/Python conventions in the repo (clang/Xcode defaults, 4-space indentation in Python).
 - Keep public headers tidy and update comments where behavior changes.
 
 ## Build & Release
@@ -52,7 +56,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 
 ## Coding Style & Conventions
 - Prefer concise Objective-C with explicit `APTBeginSection` markers; avoid introducing new macros unless necessary.
-- Stick to existing file organization (Objective-C source under `appletrace/src`, Python utilities at repo root).
+- Keep Objective-C source under `appletrace/src`; Python utilities now live both at repo root (`merge.py`) and under `scripts/` for higher-level workflows.
 - Use descriptive section names inside traces to keep Chrome timelines meaningful.
 
 ## Debugging
@@ -70,7 +74,8 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 
 ## Pull Request Checklist
 - [ ] Build the relevant Xcode targets (framework, loader, and/or samples) and ensure they run on device or Simulator.
-- [ ] Run `python merge.py -d <path>` (or `sh go.sh <path>`) against fresh trace data to confirm the pipeline still works.
+- [ ] Run `python3 -m pytest tests` when touching Python tooling.
+- [ ] Run `python3 merge.py -d <path>` (or `sh go.sh <path>`) against fresh trace data to confirm the pipeline still works.
 - [ ] Update `README.md`/`AGENT.md` if instructions changed; keep images/links in sync.
 - [ ] Re-sign loader artifacts with `loader/resign.sh` if the embedded framework changed.
 - [ ] Document manual testing performed (devices, iOS versions, Simulator).

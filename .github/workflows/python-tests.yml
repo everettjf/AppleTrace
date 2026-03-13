@@ -1,0 +1,38 @@
+name: Python Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run tests
+        run: python -m pytest tests
+
+  objc-msgsend-smoke:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make smoke script executable
+        run: chmod +x scripts/test_objc_msgsend_hook.sh scripts/test_objc_msgsend_hook_experimental.sh
+      - name: Run objc_msgSend smoke test
+        run: ./scripts/test_objc_msgsend_hook.sh
+
+  objc-msgsend-experimental:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make experimental script executable
+        run: chmod +x scripts/test_objc_msgsend_hook.sh scripts/test_objc_msgsend_hook_experimental.sh
+      - name: Run objc_msgSend experimental test
+        run: ./scripts/test_objc_msgsend_hook_experimental.sh

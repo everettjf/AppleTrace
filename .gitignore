@@ -10,3 +10,4 @@ appletrace/appletrace.xcodeproj/xcuserdata/
 *.deb
 *.zip
 *.dylib
+build/

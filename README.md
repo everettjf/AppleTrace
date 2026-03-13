@@ -17,6 +17,14 @@
 > ⚠️ **Note:** AppleTrace is in maintenance mode (bug fixes only).  
 > **Recommended:** Upgrade to **[Messier](https://messier.github.io/)** - the next-generation tracing tool that's easier to use and better maintained.
 
+## 2026 Modernization Highlights
+
+- Python tooling now targets Python 3 and produces valid JSON output reliably.
+- Added a unified CLI: `scripts/appletrace_cli.py`.
+- Added automated tests for trace merging plus GitHub Actions CI.
+- Runtime now supports `APTFlush`, `APTSetEnabled`, `APTIsEnabled`, and `APTGetTraceDirectory`.
+- Trace writing supports JSON-safe section names, configurable output directory, and configurable mmap block size.
+
 ---
 
 ## 🎯 What is AppleTrace?
@@ -29,11 +37,17 @@ AppleTrace is an iOS tracing toolkit
 
 ### Key Features
 
-- 📊 **Method Tracing** - Hook every objc_msgSend to capture all Objective-C method calls
+- 📊 **Method Tracing** - Directly rebind `objc_msgSend` on arm64 to capture Objective-C method activity
 - 🎯 **Custom Sections** - Define custom trace sections with APTBeginSection/APTEndSection
 - 📈 **Call Graph** - Visualize call relationships and execution flow
 - 🌐 **Chrome Integration** - Export traces to chrome://tracing or generate shareable HTML reports
-- 🔧 **Dual Modes** - Manual instrumentation or dynamic hooking via HookZz
+- 🔧 **Dual Modes** - Manual instrumentation or dynamic hooking via direct `objc_msgSend` rebinding
+
+### Current Hook Status
+
+- Stable path: manual sections plus delayed `objc_msgSend` hook installation are covered by simulator smoke tests.
+- Experimental path: app-owned nested Objective-C sends are now covered by a second simulator trace scenario.
+- Recommended release posture: ship the current direct hook as an arm64 preview, with manual sections still available as the lowest-risk baseline.
 
 ### Use Cases
 
@@ -59,8 +73,8 @@ cd AppleTrace
 # Download Catapult tooling
 sh get_catapult.sh
 
-# Optional: Install Python dependencies
-pip3 install -r requirements.txt
+# Optional but recommended: install Python tooling
+python3 -m pip install -r requirements.txt
 ```
 
 ### 2. Choose Your Mode
@@ -81,10 +95,8 @@ pip3 install -r requirements.txt
 #### Mode B: Dynamic Hooking (Advanced)
 
 ```bash
-# Requires LLDB and arm64 device/simulator
-# Uses HookZz to hook all objc_msgSend calls
-lldb ./YourApp
-(lldb) command script import loader/AppleTraceLoader.py
+# Requires arm64 and explicit hook installation
+# Call APTInstallObjcMsgSendHook() after app launch
 ```
 
 ### 3. Capture & Visualize
@@ -94,7 +106,7 @@ lldb ./YourApp
 # Traces are saved to /Library/appletracedata
 
 # Merge trace files
-python merge.py -d /Library/appletracedata
+python3 merge.py -d /Library/appletracedata
 
 # Generate HTML report (requires Catapult)
 sh go.sh /Library/appletracedata
@@ -119,7 +131,7 @@ open /Library/appletracedata/trace.html
 |-------------|---------|-------------|
 | **macOS** | 10.15+ | Build environment |
 | **Xcode** | 12+ | iOS/macOS development |
-| **Python** | 3.8+ | Trace processing scripts |
+| **Python** | 3.9+ | Trace processing scripts and test tooling |
 | **Chrome** | Any | Trace visualization |
 | **LLDB** | (Optional) | Dynamic hook mode |
 
@@ -158,11 +170,13 @@ AppleTrace/
 │   └── TraceAllMsgDemo/     # Dynamic hook demo
 ├── image/                   # Documentation images
 ├── sampledata/              # Demo trace files
-├── scripts/                 # Processing scripts
-│   ├── merge.py            # Merge trace files
-│   ├── go.sh               # Merge + HTML generation
-│   └── get_catapult.sh     # Download Catapult
+├── scripts/                 # Utility scripts
+│   └── appletrace_cli.py    # Merge + HTML generation CLI
+├── merge.py                 # Merge trace files
+├── go.sh                    # One-shot merge + HTML generation
+├── get_catapult.sh          # Download Catapult
 ├── requirements.txt         # Python dependencies
+├── tests/                   # Python regression tests
 ├── README.md               # English documentation
 └── README_CN.md            # Chinese documentation
 ```
@@ -203,6 +217,29 @@ void complexFunction() {
     // C++ code
     APTEndSection("processing");
 }
+
+void saferCppFunction() {
+    APTScopeSection("processing");
+    // C++ code
+}
+```
+
+### Dynamic Hooking Smoke Test
+
+```bash
+./scripts/test_objc_msgsend_hook.sh
+./scripts/test_objc_msgsend_hook_experimental.sh
+```
+
+The first script validates the baseline delayed-install flow. The second script validates nested sample method tracing, including cross-thread events and explicit section pairing.
+
+### Runtime Controls
+
+```objc
+APTSetEnabled(NO);   // Temporarily disable trace recording
+APTSetEnabled(YES);  // Re-enable
+APTFlush();          // Force buffered writes to disk
+NSLog(@"trace dir = %s", APTGetTraceDirectory());
 ```
 
 ### Dynamic Hook Mode
@@ -223,15 +260,30 @@ lldb YourApp.app
 
 ```bash
 # Merge all trace files
-python merge.py -d /path/to/appletracedata
+python3 merge.py -d /path/to/appletracedata
+
+# Or use the unified CLI
+python3 scripts/appletrace_cli.py merge /path/to/appletracedata
 
 # Generate HTML (requires Catapult)
-python catapult/tracing/bin/trace2html \
+python3 catapult/tracing/bin/trace2html \
   /path/to/appletracedata/trace.json \
   --output=/path/to/appletracedata/trace.html
 
 # Or use the helper script
 sh go.sh /path/to/appletracedata
+
+# One-shot merge + HTML via CLI
+python3 scripts/appletrace_cli.py all /path/to/appletracedata --open
+```
+
+### Runtime Environment Variables
+
+```bash
+export APPLETRACE_ENABLED=1
+export APPLETRACE_DATA_DIR="$HOME/tmp/appletracedata"
+export APPLETRACE_BLOCK_SIZE_MB=32
+export APPLETRACE_KEEP_EXISTING=1
 ```
 
 ---
