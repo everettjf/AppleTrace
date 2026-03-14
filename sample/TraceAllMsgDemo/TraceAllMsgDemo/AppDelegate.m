@@ -92,8 +92,15 @@ static void APTAppendScenarioProgress(const char *step) {
         return;
     }
 
-    (void)write(fd, step, strlen(step));
-    (void)write(fd, "\n", 1);
+    size_t stepLength = strlen(step);
+    char *line = malloc(stepLength + 2);
+    if (line) {
+        memcpy(line, step, stepLength);
+        line[stepLength] = '\n';
+        line[stepLength + 1] = '\0';
+        (void)write(fd, line, stepLength + 1);
+        free(line);
+    }
     (void)close(fd);
     (void)write(STDERR_FILENO, "AppleTrace progress: ", 21);
     (void)write(STDERR_FILENO, step, strlen(step));
@@ -103,6 +110,33 @@ static void APTAppendScenarioProgress(const char *step) {
 static void APTAppendScenarioProgressDouble(const char *label, double value) {
     char buffer[128];
     int written = snprintf(buffer, sizeof(buffer), "%s=%.2f", label, value);
+    if (written <= 0 || written >= (int)sizeof(buffer)) {
+        return;
+    }
+
+    APTAppendScenarioProgress(buffer);
+}
+
+static void APTAppendScenarioProgressRange(const char *label, NSRange range) {
+    char buffer[128];
+    int written = snprintf(buffer, sizeof(buffer), "%s=%lu,%lu", label, (unsigned long)range.location, (unsigned long)range.length);
+    if (written <= 0 || written >= (int)sizeof(buffer)) {
+        return;
+    }
+
+    APTAppendScenarioProgress(buffer);
+}
+
+static void APTAppendScenarioProgressInsets(const char *label, UIEdgeInsets insets) {
+    char buffer[128];
+    int written = snprintf(buffer,
+                           sizeof(buffer),
+                           "%s=%.2f,%.2f,%.2f,%.2f",
+                           label,
+                           insets.top,
+                           insets.left,
+                           insets.bottom,
+                           insets.right);
     if (written <= 0 || written >= (int)sizeof(buffer)) {
         return;
     }
@@ -166,6 +200,17 @@ static void APTAppendScenarioProgressDouble(const char *label, double value) {
                   i:(double)a9
                   j:(double)a10{
     return a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10;
+}
+
+- (NSRange)makeRangeLocation:(NSUInteger)location length:(NSUInteger)length {
+    return NSMakeRange(location, length);
+}
+
+- (UIEdgeInsets)makeInsetsTop:(CGFloat)top
+                         left:(CGFloat)left
+                       bottom:(CGFloat)bottom
+                        right:(CGFloat)right {
+    return UIEdgeInsetsMake(top, left, bottom, right);
 }
 
 + (BOOL)staticMethod:(NSString*)words{
@@ -255,6 +300,12 @@ static void APTAppendScenarioProgressDouble(const char *label, double value) {
                                 j:10.0];
     APTAppendScenarioProgressDouble("runTraceScenario:doubleSum", sum);
     APTAppendScenarioProgress("runTraceScenario:after-doubleSum");
+    NSRange range = [self makeRangeLocation:12 length:34];
+    APTAppendScenarioProgressRange("runTraceScenario:range", range);
+    APTAppendScenarioProgress("runTraceScenario:after-range");
+    UIEdgeInsets insets = [self makeInsetsTop:1.0 left:2.0 bottom:3.0 right:4.0];
+    APTAppendScenarioProgressInsets("runTraceScenario:insets", insets);
+    APTAppendScenarioProgress("runTraceScenario:after-insets");
     APTSuperChild *superChild = [[APTSuperChild alloc] init];
     [superChild invokeSuperPing];
     APTAppendScenarioProgress("runTraceScenario:after-superPing");

@@ -124,6 +124,20 @@ assert_experimental_progress() {
     echo "Diagnostic: floating-point objc_msgSend arguments or return value were not preserved." >&2
     return 1
   fi
+
+  if ! grep -q '^runTraceScenario:range=12,34$' "${PROGRESS_LOG}"; then
+    echo "Experimental progress log:"
+    cat "${PROGRESS_LOG}"
+    echo "Diagnostic: pair-register Objective-C struct return was not preserved." >&2
+    return 1
+  fi
+
+  if ! grep -q '^runTraceScenario:insets=1.00,2.00,3.00,4.00$' "${PROGRESS_LOG}"; then
+    echo "Experimental progress log:"
+    cat "${PROGRESS_LOG}"
+    echo "Diagnostic: floating-point aggregate Objective-C return was not preserved." >&2
+    return 1
+  fi
 }
 
 if [[ ! -d "${TRACE_DIR}" ]]; then
@@ -164,6 +178,8 @@ if os.environ.get("APPLETRACE_EXPERIMENTAL_SCENARIO") == "1":
         "[AppDelegate]levelThree",
         "[AppDelegate]manyArgs:a2:a3:a4:a5:a6:a7:a8:a9:a10:",
         "[AppDelegate]sumDoubles:b:c:d:e:f:g:h:i:j:",
+        "[AppDelegate]makeRangeLocation:length:",
+        "[AppDelegate]makeInsetsTop:left:bottom:right:",
         "[APTSuperBase]superPing",
         "[APTSuperChild]init",
         "[APTSuperChild]invokeSuperPing",
