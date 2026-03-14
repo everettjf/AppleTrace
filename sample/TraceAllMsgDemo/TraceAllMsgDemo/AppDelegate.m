@@ -15,6 +15,30 @@
 #import "ViewController.h"
 #import "ThreadTest.h"
 
+@interface APTSuperBase : NSObject
+- (void)superPing;
+@end
+
+@implementation APTSuperBase
+
+- (void)superPing {
+    usleep(20);
+}
+
+@end
+
+@interface APTSuperChild : APTSuperBase
+- (void)invokeSuperPing;
+@end
+
+@implementation APTSuperChild
+
+- (void)invokeSuperPing {
+    [super superPing];
+}
+
+@end
+
 @interface AppDelegate ()
 @property (nonatomic, assign) BOOL didStartTraceScenario;
 
@@ -231,6 +255,9 @@ static void APTAppendScenarioProgressDouble(const char *label, double value) {
                                 j:10.0];
     APTAppendScenarioProgressDouble("runTraceScenario:doubleSum", sum);
     APTAppendScenarioProgress("runTraceScenario:after-doubleSum");
+    APTSuperChild *superChild = [[APTSuperChild alloc] init];
+    [superChild invokeSuperPing];
+    APTAppendScenarioProgress("runTraceScenario:after-superPing");
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         APTAppendScenarioProgress("runTraceScenario:block2-entry");

@@ -28,6 +28,7 @@
 #endif
 
 typedef void (*APTObjcMsgSendFunction)(void);
+typedef void (*APTObjcMsgSendSuper2Function)(void);
 
 #ifdef __LP64__
 typedef struct mach_header_64 mach_header_t;
@@ -71,14 +72,17 @@ static pthread_key_t gTraceStackKey;
 static pthread_once_t gTraceStackKeyOnce = PTHREAD_ONCE_INIT;
 static dispatch_once_t gHookInstallOnce;
 static APTObjcMsgSendFunction apt_original_objc_msgSend = NULL;
+static APTObjcMsgSendSuper2Function apt_original_objc_msgSendSuper2 = NULL;
 static struct APTRebindingsEntry *gRebindingsHead = NULL;
 static BOOL gHookInstalled = NO;
 
 __attribute__((used)) static void apt_before_objc_msgSend(id object, SEL selector);
+__attribute__((used)) static void apt_before_objc_msgSendSuper2(struct objc_super *super_info, SEL selector);
 __attribute__((used)) static void apt_after_objc_msgSend(void);
 static void apt_configure_trace_ranges(void);
 static int apt_rebind_symbols(struct APTRebinding rebindings[], size_t count);
 extern void apt_objc_msgSend_wrapper(void);
+extern void apt_objc_msgSendSuper2_wrapper(void);
 
 static BOOL apt_bool_from_environment(NSString *key, BOOL fallback) {
     NSString *value = [[[NSProcessInfo processInfo] environment] objectForKey:key];
@@ -97,19 +101,27 @@ static BOOL apt_install_objc_msgsend_hook(void) {
     dispatch_once(&gHookInstallOnce, ^{
         apt_configure_trace_ranges();
         apt_original_objc_msgSend = (APTObjcMsgSendFunction)dlsym(RTLD_DEFAULT, "objc_msgSend");
-        if (apt_original_objc_msgSend == NULL) {
-            NSLog(@"AppleTrace: failed to resolve objc_msgSend before rebinding");
+        apt_original_objc_msgSendSuper2 = (APTObjcMsgSendSuper2Function)dlsym(RTLD_DEFAULT, "objc_msgSendSuper2");
+        if (apt_original_objc_msgSend == NULL || apt_original_objc_msgSendSuper2 == NULL) {
+            NSLog(@"AppleTrace: failed to resolve objc_msgSend symbols before rebinding");
             return;
         }
 
-        struct APTRebinding rebinding = {
-            .name = "objc_msgSend",
-            .replacement = (void *)apt_objc_msgSend_wrapper,
-            .replaced = (void **)&apt_original_objc_msgSend,
+        struct APTRebinding rebindings[] = {
+            {
+                .name = "objc_msgSend",
+                .replacement = (void *)apt_objc_msgSend_wrapper,
+                .replaced = (void **)&apt_original_objc_msgSend,
+            },
+            {
+                .name = "objc_msgSendSuper2",
+                .replacement = (void *)apt_objc_msgSendSuper2_wrapper,
+                .replaced = (void **)&apt_original_objc_msgSendSuper2,
+            },
         };
 
-        int status = apt_rebind_symbols(&rebinding, 1);
-        if (status == 0 && apt_original_objc_msgSend != NULL) {
+        int status = apt_rebind_symbols(rebindings, 2);
+        if (status == 0 && apt_original_objc_msgSend != NULL && apt_original_objc_msgSendSuper2 != NULL) {
             gHookInstalled = YES;
         }
     });
@@ -164,6 +176,60 @@ __asm__(
 "ldp q6, q7, [sp, #0x130]\n"
 "adrp x16, _apt_original_objc_msgSend@PAGE\n"
 "ldr x16, [x16, _apt_original_objc_msgSend@PAGEOFF]\n"
+"blr x16\n"
+"stp x0, x1, [sp, #0x80]\n"
+"stp q0, q1, [sp, #0xD0]\n"
+"stp q2, q3, [sp, #0xF0]\n"
+"bl _apt_after_objc_msgSend\n"
+"ldp x0, x1, [sp, #0x80]\n"
+"ldp q0, q1, [sp, #0xD0]\n"
+"ldp q2, q3, [sp, #0xF0]\n"
+"ldp x29, x30, [sp, #0x1B0]\n"
+"add sp, sp, #0x1C0\n"
+"ret\n"
+".globl _apt_objc_msgSendSuper2_wrapper\n"
+"_apt_objc_msgSendSuper2_wrapper:\n"
+"sub sp, sp, #0x1C0\n"
+"stp x29, x30, [sp, #0x1B0]\n"
+"mov x29, sp\n"
+"add x11, sp, #0x1C0\n"
+"ldp x9, x10, [x11, #0x00]\n"
+"stp x9, x10, [sp, #0x00]\n"
+"ldp x9, x10, [x11, #0x10]\n"
+"stp x9, x10, [sp, #0x10]\n"
+"ldp x9, x10, [x11, #0x20]\n"
+"stp x9, x10, [sp, #0x20]\n"
+"ldp x9, x10, [x11, #0x30]\n"
+"stp x9, x10, [sp, #0x30]\n"
+"ldp x9, x10, [x11, #0x40]\n"
+"stp x9, x10, [sp, #0x40]\n"
+"ldp x9, x10, [x11, #0x50]\n"
+"stp x9, x10, [sp, #0x50]\n"
+"ldp x9, x10, [x11, #0x60]\n"
+"stp x9, x10, [sp, #0x60]\n"
+"ldp x9, x10, [x11, #0x70]\n"
+"stp x9, x10, [sp, #0x70]\n"
+"stp x0, x1, [sp, #0x80]\n"
+"stp x2, x3, [sp, #0x90]\n"
+"stp x4, x5, [sp, #0xA0]\n"
+"stp x6, x7, [sp, #0xB0]\n"
+"str x8, [sp, #0xC0]\n"
+"stp q0, q1, [sp, #0xD0]\n"
+"stp q2, q3, [sp, #0xF0]\n"
+"stp q4, q5, [sp, #0x110]\n"
+"stp q6, q7, [sp, #0x130]\n"
+"bl _apt_before_objc_msgSendSuper2\n"
+"ldp x0, x1, [sp, #0x80]\n"
+"ldp x2, x3, [sp, #0x90]\n"
+"ldp x4, x5, [sp, #0xA0]\n"
+"ldp x6, x7, [sp, #0xB0]\n"
+"ldr x8, [sp, #0xC0]\n"
+"ldp q0, q1, [sp, #0xD0]\n"
+"ldp q2, q3, [sp, #0xF0]\n"
+"ldp q4, q5, [sp, #0x110]\n"
+"ldp q6, q7, [sp, #0x130]\n"
+"adrp x16, _apt_original_objc_msgSendSuper2@PAGE\n"
+"ldr x16, [x16, _apt_original_objc_msgSendSuper2@PAGEOFF]\n"
 "blr x16\n"
 "stp x0, x1, [sp, #0x80]\n"
 "stp q0, q1, [sp, #0xD0]\n"
@@ -321,6 +387,45 @@ static char *apt_copy_trace_name(id object, SEL selector) {
     return trace_name;
 }
 
+static char *apt_copy_super_trace_name(struct objc_super *super_info, SEL selector) {
+    if (!super_info) {
+        return NULL;
+    }
+
+    id receiver = super_info->receiver;
+    if (!receiver || !selector) {
+        return NULL;
+    }
+
+    const char *selector_name = sel_getName(selector);
+    if (!apt_selector_should_trace(selector_name)) {
+        return NULL;
+    }
+
+    Class current_class = super_info->super_class;
+    Class target_class = current_class ? class_getSuperclass(current_class) : Nil;
+    if (!target_class) {
+        target_class = object_getClass(receiver);
+    }
+    if (!apt_class_should_trace(target_class)) {
+        return NULL;
+    }
+
+    const char *class_name = class_getName(target_class);
+    if (!class_name || !selector_name) {
+        return NULL;
+    }
+
+    size_t required = strlen(class_name) + strlen(selector_name) + 4;
+    char *trace_name = malloc(required);
+    if (!trace_name) {
+        return NULL;
+    }
+
+    snprintf(trace_name, required, "[%s]%s", class_name, selector_name);
+    return trace_name;
+}
+
 static void apt_before_objc_msgSend(id object, SEL selector) {
     if (gTraceGuard != 0) {
         return;
@@ -328,6 +433,20 @@ static void apt_before_objc_msgSend(id object, SEL selector) {
 
     gTraceGuard += 1;
     char *trace_name = apt_copy_trace_name(object, selector);
+    if (trace_name) {
+        apt_trace_stack_push(trace_name);
+        APTBeginSection(trace_name);
+    }
+    gTraceGuard -= 1;
+}
+
+static void apt_before_objc_msgSendSuper2(struct objc_super *super_info, SEL selector) {
+    if (gTraceGuard != 0) {
+        return;
+    }
+
+    gTraceGuard += 1;
+    char *trace_name = apt_copy_super_trace_name(super_info, selector);
     if (trace_name) {
         apt_trace_stack_push(trace_name);
         APTBeginSection(trace_name);

@@ -164,6 +164,9 @@ if os.environ.get("APPLETRACE_EXPERIMENTAL_SCENARIO") == "1":
         "[AppDelegate]levelThree",
         "[AppDelegate]manyArgs:a2:a3:a4:a5:a6:a7:a8:a9:a10:",
         "[AppDelegate]sumDoubles:b:c:d:e:f:g:h:i:j:",
+        "[APTSuperBase]superPing",
+        "[APTSuperChild]init",
+        "[APTSuperChild]invokeSuperPing",
         "[ThreadTest]goLoop",
     )
     if not all(name in text for name in expected):
