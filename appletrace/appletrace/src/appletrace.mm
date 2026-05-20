@@ -9,6 +9,7 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <dispatch/dispatch.h>
@@ -498,7 +499,7 @@ private:
             return thread_log;
         }
 
-        auto owned = std::make_unique<ThreadLog>();
+        std::unique_ptr<ThreadLog> owned(new ThreadLog());
         owned->pending.reserve(kBatchReserveBytes);
         thread_log = owned.get();
         {
