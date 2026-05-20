@@ -235,8 +235,11 @@ this:
 
 1. Build the framework and run `scripts/test_objc_msgsend_hook.sh` and
    `scripts/test_objc_msgsend_hook_experimental.sh` — output must match today's.
-2. Add a stress scenario: N threads emitting M events each, plus periodic
-   `APTFlush`; assert the merged event count equals N×M (no loss, no dupes).
+2. Run `scripts/test_batching_stress.sh`: it builds `appletrace.mm` +
+   `tests/stress/stress_main.mm` for the host, emits N threads × M begin/end
+   pairs (worker threads exit before the flush to exercise the drain path), and
+   asserts the merged trace contains exactly N×M `stress` complete events — no
+   loss, no duplication. Run it a few times; concurrency bugs are intermittent.
 3. Profile `TraceAllMsgDemo` with Instruments before/after; compare wall-clock
    overhead and peak queue memory. Target: large reduction in `dispatch_async`
    count and per-event allocations.
