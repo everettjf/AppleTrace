@@ -9,8 +9,10 @@ import re
 from pathlib import Path
 from typing import Iterable, List
 
+from appletrace_binary import decode as decode_binary_fragment, is_binary_fragment
 
-TRACE_FILE_RE = re.compile(r"^trace(?:_(\d+))?\.appletrace$")
+
+TRACE_FILE_RE = re.compile(r"^trace(?:_(\d+))?\.appletrace(bin)?$")
 
 
 def list_trace_files(directory: Path) -> List[Path]:
@@ -31,31 +33,39 @@ def list_trace_files(directory: Path) -> List[Path]:
 
 
 def iter_events(trace_files: Iterable[Path]) -> Iterable[dict]:
-    """Yield valid JSON events from AppleTrace fragment files."""
+    """Yield events from AppleTrace fragments (text JSON-lines or binary)."""
     for file_path in trace_files:
         print(file_path)
-        with file_path.open("r", encoding="utf-8") as handle:
-            for line_number, line in enumerate(handle, start=1):
-                raw_line = line.strip()
-                if not raw_line:
-                    continue
+        data = file_path.read_bytes()
+        if is_binary_fragment(data):
+            yield from decode_binary_fragment(data)
+        else:
+            yield from _iter_text_events(file_path, data)
 
-                if not raw_line.startswith("{"):
-                    break
 
-                try:
-                    event = json.loads(raw_line)
-                except json.JSONDecodeError as exc:
-                    raise ValueError(
-                        f"Invalid JSON in {file_path}:{line_number}: {exc.msg}"
-                    ) from exc
+def _iter_text_events(file_path: Path, data: bytes) -> Iterable[dict]:
+    text = data.decode("utf-8")
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        raw_line = line.strip()
+        if not raw_line:
+            continue
 
-                if not isinstance(event, dict):
-                    raise ValueError(
-                        f"Unexpected non-object event in {file_path}:{line_number}"
-                    )
+        if not raw_line.startswith("{"):
+            break
 
-                yield event
+        try:
+            event = json.loads(raw_line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"Invalid JSON in {file_path}:{line_number}: {exc.msg}"
+            ) from exc
+
+        if not isinstance(event, dict):
+            raise ValueError(
+                f"Unexpected non-object event in {file_path}:{line_number}"
+            )
+
+        yield event
 
 
 def iter_complete_events(events: Iterable[dict]) -> Iterable[dict]:
