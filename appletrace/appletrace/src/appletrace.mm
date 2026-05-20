@@ -320,18 +320,45 @@ public:
             return;
         }
 
-        uint64_t thread_id = 0;
-        pthread_threadid_np(pthread_self(), &thread_id);
-        if (main_thread_id_.load() == 0 && pthread_main_np() != 0) {
-            uint64_t expected = 0;
-            main_thread_id_.compare_exchange_strong(expected, thread_id);
-        }
-        if (thread_id == main_thread_id_.load()) {
-            thread_id = 0;
-        }
-
+        const uint64_t thread_id = ResolveThreadId();
         const uint64_t elapsed_us = (CurrentTimeNs() - begin_) / 1000;
         std::string line = BuildEventLine(name, phase, thread_id, elapsed_us);
+        dispatch_async(queue_, ^{
+            log_.AddLine(line);
+        });
+    }
+
+    void WriteInstant(const char *name) {
+        if (!IsEnabled() || !name || name[0] == '\0' || !queue_) {
+            return;
+        }
+
+        const uint64_t thread_id = ResolveThreadId();
+        const uint64_t elapsed_us = (CurrentTimeNs() - begin_) / 1000;
+        std::string line =
+            "{\"name\":\"" + EscapeJSONString(name) +
+            "\",\"cat\":\"appletrace\",\"ph\":\"i\",\"pid\":" + std::to_string(pid_) +
+            ",\"tid\":" + std::to_string(thread_id) + ",\"ts\":" + std::to_string(elapsed_us) +
+            ",\"s\":\"t\"}";
+        dispatch_async(queue_, ^{
+            log_.AddLine(line);
+        });
+    }
+
+    void WriteCounter(const char *name, double value) {
+        if (!IsEnabled() || !name || name[0] == '\0' || !queue_) {
+            return;
+        }
+
+        const uint64_t thread_id = ResolveThreadId();
+        const uint64_t elapsed_us = (CurrentTimeNs() - begin_) / 1000;
+        char value_buffer[64] = {0};
+        snprintf(value_buffer, sizeof(value_buffer), "%g", value);
+        std::string line =
+            "{\"name\":\"" + EscapeJSONString(name) +
+            "\",\"cat\":\"appletrace\",\"ph\":\"C\",\"pid\":" + std::to_string(pid_) +
+            ",\"tid\":" + std::to_string(thread_id) + ",\"ts\":" + std::to_string(elapsed_us) +
+            ",\"args\":{\"value\":" + value_buffer + "}}";
         dispatch_async(queue_, ^{
             log_.AddLine(line);
         });
@@ -354,6 +381,46 @@ private:
     uint64_t CurrentTimeNs() const {
         const uint64_t now = mach_absolute_time();
         return now * timeinfo_.numer / timeinfo_.denom;
+    }
+
+    uint64_t ResolveThreadId() {
+        uint64_t thread_id = 0;
+        pthread_threadid_np(pthread_self(), &thread_id);
+        if (main_thread_id_.load() == 0 && pthread_main_np() != 0) {
+            uint64_t expected = 0;
+            main_thread_id_.compare_exchange_strong(expected, thread_id);
+        }
+        const uint64_t reported = (thread_id == main_thread_id_.load()) ? 0 : thread_id;
+        EmitThreadNameOnce(reported);
+        return reported;
+    }
+
+    void EmitThreadNameOnce(uint64_t reported_thread_id) {
+        static __thread bool named = false;
+        if (named || !queue_) {
+            return;
+        }
+        named = true;
+
+        std::string thread_name;
+        if (reported_thread_id == 0) {
+            thread_name = "Main Thread";
+        } else {
+            char buffer[256] = {0};
+            if (pthread_getname_np(pthread_self(), buffer, sizeof(buffer)) == 0 && buffer[0] != '\0') {
+                thread_name = buffer;
+            } else {
+                thread_name = "Thread " + std::to_string(reported_thread_id);
+            }
+        }
+
+        std::string line =
+            "{\"name\":\"thread_name\",\"ph\":\"M\",\"pid\":" + std::to_string(pid_) +
+            ",\"tid\":" + std::to_string(reported_thread_id) + ",\"args\":{\"name\":\"" +
+            EscapeJSONString(thread_name.c_str()) + "\"}}";
+        dispatch_async(queue_, ^{
+            log_.AddLine(line);
+        });
     }
 
     std::string BuildEventLine(const char *name, const char *phase, uint64_t thread_id, uint64_t elapsed_us) const {
@@ -396,6 +463,14 @@ public:
         trace_.WriteSection(name, "E");
     }
 
+    void Instant(const char *name) {
+        trace_.WriteInstant(name);
+    }
+
+    void Counter(const char *name, double value) {
+        trace_.WriteCounter(name, value);
+    }
+
     void Flush() {
         trace_.Flush();
     }
@@ -434,6 +509,14 @@ void APTBeginSection(const char *name) {
 
 void APTEndSection(const char *name) {
     appletrace::TraceManager::Instance().EndSection(name);
+}
+
+void APTInstant(const char *name) {
+    appletrace::TraceManager::Instance().Instant(name);
+}
+
+void APTCounter(const char *name, double value) {
+    appletrace::TraceManager::Instance().Counter(name, value);
 }
 
 void APTSyncWait() {

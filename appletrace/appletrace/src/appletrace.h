@@ -7,6 +7,8 @@
 
 FOUNDATION_EXPORT void APTBeginSection(const char *name);
 FOUNDATION_EXPORT void APTEndSection(const char *name);
+FOUNDATION_EXPORT void APTInstant(const char *name);
+FOUNDATION_EXPORT void APTCounter(const char *name, double value);
 FOUNDATION_EXPORT void APTSyncWait(void);
 FOUNDATION_EXPORT void APTFlush(void);
 FOUNDATION_EXPORT void APTSetEnabled(BOOL enabled);

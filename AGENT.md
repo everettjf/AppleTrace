@@ -4,7 +4,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 
 ## Project Overview
 - AppleTrace instruments iOS apps so you can analyze performance hotspots with Chrome's tracing viewer.
-- Developers can either add manual `APTBeginSection` / `APTEndSection` markers or hook every `objc_msgSend` via HookZz (arm64 only).
+- Developers can either add manual `APTBeginSection` / `APTEndSection` markers (plus `APTInstant` / `APTCounter` events) or hook every `objc_msgSend` via a fishhook-style direct symbol rebind (arm64 only; see `appletrace/appletrace/src/objc/hook_objc_msgSend.m`).
 - `merge.py`, `scripts/appletrace_cli.py`, Catapult's `trace2html`, and the helper `go.sh` script transform sandbox data into `trace.json` and `trace.html`.
 - Releases bundle a loader tweaked for arm64, but the source can be rebuilt via the included Xcode projects.
 
@@ -13,7 +13,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 - `loader/` — Loader/packaging project plus `resign.sh` for re-signing the embedded `appletrace.framework`.
 - `sample/ManualSectionDemo` and `sample/TraceAllMsgDemo` — Xcode samples that show manual instrumentation and HookZz-based tracing.
 - `springboard/AppleTraceSpringBoard` — Additional loader project for SpringBoard-focused experiments.
-- `hookzz/` — Embedded HookZz dependency used to hook `objc_msgSend`.
+- `hookzz/` — Legacy embedded HookZz dependency (the current `objc_msgSend` hook uses a direct symbol rebind instead).
 - `go.sh`, `merge.py`, `scripts/appletrace_cli.py`, `get_catapult.sh` — Scripts for merging trace files, converting them with Catapult, and downloading Catapult.
 - `sampledata/` — Ready-made traces (`trace.html`) for verifying the visualization pipeline.
 - `release/` — Notes and artifacts for the prebuilt loader (arm64 only).

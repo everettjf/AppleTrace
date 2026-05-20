@@ -15,6 +15,7 @@
 #import <mach-o/nlist.h>
 #import <objc/message.h>
 #import <objc/runtime.h>
+#import <os/lock.h>
 #import <pthread.h>
 #import <stdio.h>
 #import <stdlib.h>
@@ -56,10 +57,25 @@ struct APTRebindingsEntry {
     struct APTRebindingsEntry *next;
 };
 
-typedef struct APTTraceNode {
-    char *name;
-    struct APTTraceNode *previous;
-} APTTraceNode;
+// Per-thread call stack of interned section names. The names are borrowed
+// (interned for the process lifetime), so the stack only stores pointers and
+// never allocates on the hot path after the initial growth.
+typedef struct APTThreadStack {
+    const char **items;
+    size_t count;
+    size_t capacity;
+} APTThreadStack;
+
+// Interned (Class, SEL) -> formatted name. A NULL name caches a "do not trace"
+// decision so the hot path never rebuilds a string or re-evaluates filters.
+typedef struct APTNameEntry {
+    Class cls;
+    SEL sel;
+    const char *name;
+    struct APTNameEntry *next;
+} APTNameEntry;
+
+#define APT_INTERN_BUCKET_COUNT 8192
 
 static uintptr_t gLogSelectorStart = 0;
 static uintptr_t gLogSelectorEnd = 0;
@@ -67,9 +83,15 @@ static uintptr_t gLogClassStart = 0;
 static uintptr_t gLogClassEnd = 0;
 static int gLogAllSelectors = 1;
 static int gLogAllClasses = 1;
+static char **gAllowPrefixes = NULL;
+static size_t gAllowPrefixCount = 0;
+static char **gDenyPrefixes = NULL;
+static size_t gDenyPrefixCount = 0;
 static __thread int gTraceGuard = 0;
 static pthread_key_t gTraceStackKey;
 static pthread_once_t gTraceStackKeyOnce = PTHREAD_ONCE_INIT;
+static APTNameEntry *gInternBuckets[APT_INTERN_BUCKET_COUNT];
+static os_unfair_lock gInternLock = OS_UNFAIR_LOCK_INIT;
 static dispatch_once_t gHookInstallOnce;
 static APTObjcMsgSendFunction apt_original_objc_msgSend = NULL;
 static APTObjcMsgSendSuper2Function apt_original_objc_msgSendSuper2 = NULL;
@@ -244,47 +266,64 @@ __asm__(
 );
 
 static void apt_free_trace_stack(void *pointer) {
-    APTTraceNode *node = (APTTraceNode *)pointer;
-    while (node) {
-        APTTraceNode *previous = node->previous;
-        free(node->name);
-        free(node);
-        node = previous;
+    APTThreadStack *stack = (APTThreadStack *)pointer;
+    if (!stack) {
+        return;
     }
+    free(stack->items);
+    free(stack);
 }
 
 static void apt_make_trace_stack_key(void) {
     pthread_key_create(&gTraceStackKey, apt_free_trace_stack);
 }
 
-static APTTraceNode *apt_trace_stack_top(void) {
+static APTThreadStack *apt_trace_stack(void) {
     pthread_once(&gTraceStackKeyOnce, apt_make_trace_stack_key);
-    return (APTTraceNode *)pthread_getspecific(gTraceStackKey);
+    APTThreadStack *stack = (APTThreadStack *)pthread_getspecific(gTraceStackKey);
+    if (!stack) {
+        stack = calloc(1, sizeof(APTThreadStack));
+        if (stack) {
+            pthread_setspecific(gTraceStackKey, stack);
+        }
+    }
+    return stack;
 }
 
-static void apt_trace_stack_set(APTTraceNode *node) {
-    pthread_once(&gTraceStackKeyOnce, apt_make_trace_stack_key);
-    pthread_setspecific(gTraceStackKey, node);
-}
-
-static void apt_trace_stack_push(char *name) {
-    APTTraceNode *node = malloc(sizeof(APTTraceNode));
-    if (!node) {
-        free(name);
+// Pushes a borrowed (interned) name. NULL is a valid value: it keeps the stack
+// balanced for sends that are filtered out so the matching pop does not unwind
+// an unrelated parent section.
+static void apt_trace_stack_push(const char *name) {
+    APTThreadStack *stack = apt_trace_stack();
+    if (!stack) {
         return;
     }
 
-    node->name = name;
-    node->previous = apt_trace_stack_top();
-    apt_trace_stack_set(node);
+    if (stack->count == stack->capacity) {
+        size_t new_capacity = stack->capacity ? stack->capacity * 2 : 64;
+        const char **items = realloc(stack->items, new_capacity * sizeof(const char *));
+        if (!items) {
+            return;
+        }
+        stack->items = items;
+        stack->capacity = new_capacity;
+    }
+
+    stack->items[stack->count++] = name;
 }
 
-static APTTraceNode *apt_trace_stack_pop(void) {
-    APTTraceNode *node = apt_trace_stack_top();
-    if (node) {
-        apt_trace_stack_set(node->previous);
+static const char *apt_trace_stack_pop(BOOL *had_entry) {
+    APTThreadStack *stack = apt_trace_stack();
+    if (!stack || stack->count == 0) {
+        if (had_entry) {
+            *had_entry = NO;
+        }
+        return NULL;
     }
-    return node;
+    if (had_entry) {
+        *had_entry = YES;
+    }
+    return stack->items[--stack->count];
 }
 
 static struct section_64 *apt_find_section(struct mach_header_64 *header, const char *section_name) {
@@ -304,9 +343,49 @@ static struct section_64 *apt_find_section(struct mach_header_64 *header, const 
     return NULL;
 }
 
+static void apt_parse_prefix_list(NSString *key, char ***out_prefixes, size_t *out_count) {
+    *out_prefixes = NULL;
+    *out_count = 0;
+
+    NSString *value = [[[NSProcessInfo processInfo] environment] objectForKey:key];
+    if (!value.length) {
+        return;
+    }
+
+    NSMutableArray<NSString *> *parsed = [NSMutableArray array];
+    for (NSString *component in [value componentsSeparatedByString:@","]) {
+        NSString *trimmed = [component stringByTrimmingCharactersInSet:
+                                 [NSCharacterSet whitespaceCharacterSet]];
+        if (trimmed.length) {
+            [parsed addObject:trimmed];
+        }
+    }
+    if (parsed.count == 0) {
+        return;
+    }
+
+    char **prefixes = calloc(parsed.count, sizeof(char *));
+    if (!prefixes) {
+        return;
+    }
+
+    size_t count = 0;
+    for (NSString *prefix in parsed) {
+        prefixes[count] = strdup(prefix.UTF8String);
+        if (prefixes[count]) {
+            count += 1;
+        }
+    }
+
+    *out_prefixes = prefixes;
+    *out_count = count;
+}
+
 static void apt_configure_trace_ranges(void) {
     gLogAllSelectors = apt_bool_from_environment(@"APPLETRACE_TRACE_ALL_SELECTORS", YES);
     gLogAllClasses = apt_bool_from_environment(@"APPLETRACE_TRACE_ALL_CLASSES", YES);
+    apt_parse_prefix_list(@"APPLETRACE_TRACE_CLASS_ALLOW", &gAllowPrefixes, &gAllowPrefixCount);
+    apt_parse_prefix_list(@"APPLETRACE_TRACE_CLASS_DENY", &gDenyPrefixes, &gDenyPrefixCount);
 
     const struct mach_header *header = _dyld_get_image_header(0);
     if (!header || header->magic != MH_MAGIC_64) {
@@ -357,8 +436,35 @@ static BOOL apt_class_should_trace(Class cls) {
     return pointer >= gLogClassStart && pointer <= gLogClassEnd;
 }
 
-static char *apt_copy_trace_name(id object, SEL selector) {
-    if (!object || !selector) {
+static BOOL apt_class_passes_filters(const char *class_name) {
+    if (!class_name) {
+        return NO;
+    }
+
+    for (size_t index = 0; index < gDenyPrefixCount; index++) {
+        const char *prefix = gDenyPrefixes[index];
+        if (strncmp(class_name, prefix, strlen(prefix)) == 0) {
+            return NO;
+        }
+    }
+
+    if (gAllowPrefixCount == 0) {
+        return YES;
+    }
+
+    for (size_t index = 0; index < gAllowPrefixCount; index++) {
+        const char *prefix = gAllowPrefixes[index];
+        if (strncmp(class_name, prefix, strlen(prefix)) == 0) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+// Builds a freshly allocated "[Class]selector" name, or NULL when the pair
+// should not be traced. Only called once per (Class, SEL) pair via interning.
+static const char *apt_build_trace_name(Class cls, SEL selector) {
+    if (!cls || !selector) {
         return NULL;
     }
 
@@ -366,8 +472,6 @@ static char *apt_copy_trace_name(id object, SEL selector) {
     if (!apt_selector_should_trace(selector_name)) {
         return NULL;
     }
-
-    Class cls = object_getClass(object);
     if (!apt_class_should_trace(cls)) {
         return NULL;
     }
@@ -376,6 +480,9 @@ static char *apt_copy_trace_name(id object, SEL selector) {
     if (!class_name || !selector_name) {
         return NULL;
     }
+    if (!apt_class_passes_filters(class_name)) {
+        return NULL;
+    }
 
     size_t required = strlen(class_name) + strlen(selector_name) + 4;
     char *trace_name = malloc(required);
@@ -387,43 +494,36 @@ static char *apt_copy_trace_name(id object, SEL selector) {
     return trace_name;
 }
 
-static char *apt_copy_super_trace_name(struct objc_super *super_info, SEL selector) {
-    if (!super_info) {
+// Returns the interned name for a (Class, SEL) pair, building it on first sight.
+// A NULL result is cached too, so filtered-out pairs cost a single lookup.
+static const char *apt_intern_trace_name(Class cls, SEL selector) {
+    if (!cls || !selector) {
         return NULL;
     }
 
-    id receiver = super_info->receiver;
-    if (!receiver || !selector) {
-        return NULL;
+    uintptr_t hash = (((uintptr_t)cls >> 3) * 2654435761u) ^ ((uintptr_t)selector >> 3);
+    size_t bucket = hash & (APT_INTERN_BUCKET_COUNT - 1);
+
+    os_unfair_lock_lock(&gInternLock);
+    for (APTNameEntry *entry = gInternBuckets[bucket]; entry; entry = entry->next) {
+        if (entry->cls == cls && entry->sel == selector) {
+            const char *name = entry->name;
+            os_unfair_lock_unlock(&gInternLock);
+            return name;
+        }
     }
 
-    const char *selector_name = sel_getName(selector);
-    if (!apt_selector_should_trace(selector_name)) {
-        return NULL;
+    const char *name = apt_build_trace_name(cls, selector);
+    APTNameEntry *entry = malloc(sizeof(APTNameEntry));
+    if (entry) {
+        entry->cls = cls;
+        entry->sel = selector;
+        entry->name = name;
+        entry->next = gInternBuckets[bucket];
+        gInternBuckets[bucket] = entry;
     }
-
-    Class current_class = super_info->super_class;
-    Class target_class = current_class ? class_getSuperclass(current_class) : Nil;
-    if (!target_class) {
-        target_class = object_getClass(receiver);
-    }
-    if (!apt_class_should_trace(target_class)) {
-        return NULL;
-    }
-
-    const char *class_name = class_getName(target_class);
-    if (!class_name || !selector_name) {
-        return NULL;
-    }
-
-    size_t required = strlen(class_name) + strlen(selector_name) + 4;
-    char *trace_name = malloc(required);
-    if (!trace_name) {
-        return NULL;
-    }
-
-    snprintf(trace_name, required, "[%s]%s", class_name, selector_name);
-    return trace_name;
+    os_unfair_lock_unlock(&gInternLock);
+    return name;
 }
 
 static void apt_before_objc_msgSend(id object, SEL selector) {
@@ -432,9 +532,12 @@ static void apt_before_objc_msgSend(id object, SEL selector) {
     }
 
     gTraceGuard += 1;
-    char *trace_name = apt_copy_trace_name(object, selector);
+    const char *trace_name = NULL;
+    if (object && selector) {
+        trace_name = apt_intern_trace_name(object_getClass(object), selector);
+    }
+    apt_trace_stack_push(trace_name);
     if (trace_name) {
-        apt_trace_stack_push(trace_name);
         APTBeginSection(trace_name);
     }
     gTraceGuard -= 1;
@@ -446,9 +549,17 @@ static void apt_before_objc_msgSendSuper2(struct objc_super *super_info, SEL sel
     }
 
     gTraceGuard += 1;
-    char *trace_name = apt_copy_super_trace_name(super_info, selector);
+    const char *trace_name = NULL;
+    if (super_info && super_info->receiver && selector) {
+        Class current_class = super_info->super_class;
+        Class target_class = current_class ? class_getSuperclass(current_class) : Nil;
+        if (!target_class) {
+            target_class = object_getClass(super_info->receiver);
+        }
+        trace_name = apt_intern_trace_name(target_class, selector);
+    }
+    apt_trace_stack_push(trace_name);
     if (trace_name) {
-        apt_trace_stack_push(trace_name);
         APTBeginSection(trace_name);
     }
     gTraceGuard -= 1;
@@ -460,11 +571,10 @@ static void apt_after_objc_msgSend(void) {
     }
 
     gTraceGuard += 1;
-    APTTraceNode *node = apt_trace_stack_pop();
-    if (node) {
-        APTEndSection(node->name);
-        free(node->name);
-        free(node);
+    BOOL had_entry = NO;
+    const char *trace_name = apt_trace_stack_pop(&had_entry);
+    if (had_entry && trace_name) {
+        APTEndSection(trace_name);
     }
     gTraceGuard -= 1;
 }

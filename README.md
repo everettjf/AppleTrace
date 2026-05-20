@@ -14,16 +14,28 @@
 
 </div>
 
-> ⚠️ **Note:** AppleTrace is in maintenance mode (bug fixes only).  
-> **Recommended:** Upgrade to **[Messier](https://messier.github.io/)** - the next-generation tracing tool that's easier to use and better maintained.
+> 🚀 **Actively developed.** AppleTrace is a lightweight, embeddable tracer that
+> produces shareable Chrome/Perfetto traces. See [ROADMAP.md](ROADMAP.md) for
+> what's planned next.
 
-## 2026 Modernization Highlights
+## What's New
 
-- Python tooling now targets Python 3 and produces valid JSON output reliably.
-- Added a unified CLI: `scripts/appletrace_cli.py`.
-- Added automated tests for trace merging plus GitHub Actions CI.
-- Runtime now supports `APTFlush`, `APTSetEnabled`, `APTIsEnabled`, and `APTGetTraceDirectory`.
-- Trace writing supports JSON-safe section names, configurable output directory, and configurable mmap block size.
+- **Faster `objc_msgSend` hook** — `(Class, SEL)` name interning plus a
+  zero-allocation per-thread call stack remove the per-message `malloc`/`snprintf`
+  churn from the hot path.
+- **Thread names** — traces now label each thread (Perfetto/Chrome show real
+  names instead of bare ids).
+- **More event types** — `APTInstant` markers and `APTCounter` series (memory,
+  FPS, custom metrics) in addition to begin/end sections.
+- **Runtime filtering** — limit automatic tracing with class-prefix allow/deny
+  lists (`APPLETRACE_TRACE_CLASS_ALLOW` / `APPLETRACE_TRACE_CLASS_DENY`).
+- **Perfetto-first visualization** — open `trace.json` at
+  [ui.perfetto.dev](https://ui.perfetto.dev) with no download required (Catapult
+  HTML export remains available offline).
+- Python 3 tooling with a unified CLI (`scripts/appletrace_cli.py`), automated
+  tests, GitHub Actions CI, and streaming trace merging for large captures.
+- Runtime controls: `APTFlush`, `APTSetEnabled`, `APTIsEnabled`,
+  `APTGetTraceDirectory`, plus configurable output directory and mmap block size.
 
 ---
 
@@ -117,9 +129,11 @@ open /Library/appletracedata/trace.html
 
 ### 4. View Results
 
-- **Option 1:** Open `trace.html` directly in Chrome
-- **Option 2:** Drag `trace.json` into chrome://tracing
-- **Option 3:** Use the [online demo](sampledata/trace.html)
+- **Option 1 (recommended):** Open [ui.perfetto.dev](https://ui.perfetto.dev) and
+  drag in `trace.json` — runs in the browser, scales to large traces, no download
+- **Option 2:** Open `trace.html` directly in Chrome (offline Catapult export)
+- **Option 3:** Drag `trace.json` into chrome://tracing
+- **Option 4:** Use the [online demo](sampledata/trace.html)
 
 ---
 
@@ -224,6 +238,17 @@ void saferCppFunction() {
 }
 ```
 
+### Instant Markers & Counters
+
+```objc
+// Mark a point in time on the current thread's timeline
+APTInstant("cache_miss");
+
+// Plot a value over time (memory, FPS, queue depth, ...)
+APTCounter("resident_mb", 142.5);
+APTCounter("fps", 60);
+```
+
 ### Dynamic Hooking Smoke Test
 
 ```bash
@@ -284,6 +309,13 @@ export APPLETRACE_ENABLED=1
 export APPLETRACE_DATA_DIR="$HOME/tmp/appletracedata"
 export APPLETRACE_BLOCK_SIZE_MB=32
 export APPLETRACE_KEEP_EXISTING=1
+
+# Automatic objc_msgSend hook (arm64)
+export APPLETRACE_AUTO_HOOK_OBJC_MSGSEND=1
+# Only trace classes with these comma-separated prefixes
+export APPLETRACE_TRACE_CLASS_ALLOW="MyApp,UI"
+# Never trace classes with these prefixes (takes precedence over allow)
+export APPLETRACE_TRACE_CLASS_DENY="NSKVO,_"
 ```
 
 ---
@@ -325,13 +357,9 @@ Explore a pre-recorded trace directly in Chrome:
 
 ### Q: Is AppleTrace still maintained?
 
-**AppleTrace is in maintenance mode** (bug fixes only, no new features).
-
-For new projects, I strongly recommend using **[Messier](https://messier.github.io/)**:
-- ✅ Modern architecture
-- ✅ Easier setup
-- ✅ Better performance
-- ✅ Active development
+**Yes — AppleTrace is actively developed.** Recent work focuses on hot-path
+performance, richer trace events, and modern Perfetto-based visualization. See
+[ROADMAP.md](ROADMAP.md) for what's coming next, and contributions are welcome.
 
 ### Q: Does AppleTrace work on iOS 17+?
 

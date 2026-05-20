@@ -1,8 +1,8 @@
 # AppleTrace Optimization & Roadmap
 
-> Status: AppleTrace is in maintenance mode. This document captures concrete
-> optimization opportunities, a competitive comparison, and a phased plan so
-> that future work (or a successor project) has a clear technical baseline.
+> Status: AppleTrace is actively developed. This document captures the
+> optimization opportunities, a competitive comparison, and a phased plan that
+> drive the project forward. Items marked ✅ have shipped.
 
 ## 1. Where We Are Today
 
@@ -90,20 +90,23 @@ should lean into that rather than chasing Frida's full feature set.
 ## 4. Phased Plan
 
 ### Phase 1 — Modernize visualization (low risk, high value)
-- Document Perfetto (`ui.perfetto.dev`) as the default viewer in README/AGENT.
-- Add a `thread_name` metadata event and emit `X` complete events.
-- Stream `merge.py` output.
+- ✅ Document Perfetto (`ui.perfetto.dev`) as the default viewer in README.
+- ✅ Add a `thread_name` metadata event so threads are labeled.
+- ✅ Stream `merge.py` output.
+- Emit `X` complete events to roughly halve file size.
 
 ### Phase 2 — Hot-path performance
-- Introduce `(Class, SEL)` name interning.
-- Move to per-thread ring buffers with bulk background flushing.
+- ✅ Introduce `(Class, SEL)` name interning.
+- ✅ Use a zero-allocation per-thread call stack (no per-message `malloc`).
+- Move event recording to per-thread ring buffers with bulk background flushing.
 - Defer JSON formatting to the exporter; emit binary events at runtime.
 
 ### Phase 3 — Expressiveness & control
-- Add counter / instant / async-flow event APIs.
-- Add runtime class-prefix allow/deny lists and a sampling mode.
+- ✅ Add `APTInstant` and `APTCounter` event APIs.
+- ✅ Add runtime class-prefix allow/deny lists.
+- Add async/flow events to track work across dispatch queues.
 
 ### Phase 4 — Reach & polish
-- Add `CONTRIBUTING.md`; clarify arm64-only constraints.
+- ✅ Add `CONTRIBUTING.md`.
+- Clarify arm64-only constraints; explore x86_64-simulator support for CI.
 - Explore an `os_signpost` backend and/or Perfetto protobuf export.
-- Evaluate x86_64-simulator support to broaden CI coverage.

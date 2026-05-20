@@ -70,10 +70,15 @@ def merge_trace_directory(directory: Path, output_path: Path | None = None) -> P
         raise FileNotFoundError(f"No trace fragments found in {directory}")
 
     target = output_path or directory / "trace.json"
-    events = list(iter_events(trace_files))
     with target.open("w", encoding="utf-8") as handle:
-        json.dump(events, handle, ensure_ascii=False, separators=(",", ":"))
-        handle.write("\n")
+        handle.write("[")
+        first = True
+        for event in iter_events(trace_files):
+            if not first:
+                handle.write(",")
+            handle.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")))
+            first = False
+        handle.write("]\n")
 
     return target
 
