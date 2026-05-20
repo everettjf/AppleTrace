@@ -11,3 +11,6 @@ appletrace/appletrace.xcodeproj/xcuserdata/
 *.zip
 *.dylib
 build/
+__pycache__/
+*.pyc
+.pytest_cache/
