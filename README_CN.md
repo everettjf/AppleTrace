@@ -1,6 +1,6 @@
 # AppleTrace 中文说明
 
-AppleTrace 是一个面向 iOS 的方法追踪与调用链分析工具，可以把运行时事件导出成 trace 文件，直接在 [Perfetto](https://ui.perfetto.dev) 中可视化分析。
+AppleTrace 是一个面向 iOS/macOS 的方法追踪与调用链分析工具，可以把运行时事件导出成 trace 文件，直接在 [Perfetto](https://ui.perfetto.dev) 中可视化分析。
 
 > 🚀 AppleTrace 正在持续开发中：轻量、可内嵌、产物可直接拖入 Perfetto 分享。
 > 下一步规划见 [ROADMAP.md](ROADMAP.md)。
@@ -8,6 +8,7 @@ AppleTrace 是一个面向 iOS 的方法追踪与调用链分析工具，可以�
 ## 最新改进
 
 - **更快的 `objc_msgSend` hook**：对 `(Class, SEL)` 做名字 interning，配合每线程零分配调用栈，热路径不再每次 `malloc`/`snprintf`。
+- **每线程批量写入**：事件先在每线程缓冲累积、批量落盘，热路径不再每事件一次 `dispatch_async`。
 - **线程命名**：trace 现在会标注线程名，Perfetto 中不再只显示裸 id。
 - **更多事件类型**：除 begin/end section 外，新增 `APTInstant`（瞬时标记）、`APTCounter`（内存、FPS 等数值曲线），以及 `APTAsyncBegin`/`APTAsyncEnd`（跨线程/队列的异步事件）。
 - **运行时过滤**：通过类名前缀 allow/deny 列表限制自动 trace 的范围
@@ -18,10 +19,10 @@ AppleTrace 是一个面向 iOS 的方法追踪与调用链分析工具，可以�
 
 ## 当前 hook 状态
 
-- 目标平台：arm64 与 arm64e（arm64e 的自动 hook 因指针认证 PAC 还需真机验证）。
-- 稳定主线：手动 section 与延迟安装的 `objc_msgSend` direct hook 已有 simulator smoke test 覆盖。
-- 实验支线：sample 自身的嵌套 Objective-C 方法调用、`objc_msgSendSuper2`、跨线程 trace、一个 10 参数 Objective-C 调用、浮点参数/返回值，以及小型聚合返回值现在也有自动化覆盖。
-- 发布建议：把 direct hook 视为 arm64/arm64e 预览能力，生产上仍可继续把手动埋点作为最低风险基线。
+- **目标平台**：arm64 与 arm64e。
+- **手动 section** 是最低风险基线，适用于所有 iOS/macOS 版本。
+- **`objc_msgSend` / `objc_msgSendSuper2` direct hook**（arm64/arm64e）已有 simulator smoke test 覆盖：嵌套调用、`super` 派发、跨线程事件、10 参数调用，以及浮点/小型聚合返回值等 ABI 场景。
+- **arm64e 自动 hook** 因指针认证（PAC）仍需真机验证，在 arm64e 上视为预览能力。
 
 ## 快速开始
 
@@ -113,15 +114,21 @@ export APPLETRACE_TRACE_CLASS_DENY="NSKVO,_"
 ## 测试
 
 ```bash
+# Python 工具链
 python3 -m pytest tests
+
+# objc_msgSend hook smoke test（在模拟器上构建并运行）
 ./scripts/test_objc_msgsend_hook.sh
 ./scripts/test_objc_msgsend_hook_experimental.sh
+
+# 批量写入并发压测（host 构建）
+./scripts/test_batching_stress.sh
 ```
 
 其中：
 
-- `test_objc_msgsend_hook.sh` 是当前可发布的稳定验证链路。
-- `test_objc_msgsend_hook_experimental.sh` 会验证 sample 方法级 trace、`super` 调用、跨线程事件、section 闭合情况、栈上传参的 Objective-C 调用、浮点参数和返回值，以及小型聚合返回值。
+- `test_objc_msgsend_hook.sh` 是稳定验证链路；`test_objc_msgsend_hook_experimental.sh` 额外验证方法级 trace、`super` 调用、跨线程事件、section 闭合、栈上传参、浮点参数/返回值与小型聚合返回值。
+- `test_batching_stress.sh` 多线程压测每线程批量写入器，断言事件不丢不重。
 
 ## 说明
 

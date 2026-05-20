@@ -11,7 +11,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 ## Repository Map
 - `appletrace/` — Core framework sources (`appletrace.xcodeproj`, Objective-C runtime hooks, exported headers).
 - `loader/` — Loader/packaging project plus `resign.sh` for re-signing the embedded `appletrace.framework`.
-- `sample/ManualSectionDemo` and `sample/TraceAllMsgDemo` — Xcode samples that show manual instrumentation and HookZz-based tracing.
+- `sample/ManualSectionDemo` and `sample/TraceAllMsgDemo` — Xcode samples that show manual instrumentation and automatic `objc_msgSend` tracing.
 - `springboard/AppleTraceSpringBoard` — Additional loader project for SpringBoard-focused experiments.
 - `hookzz/` — Legacy embedded HookZz dependency (the current `objc_msgSend` hook uses a direct symbol rebind instead).
 - `go.sh`, `merge.py`, `scripts/appletrace_cli.py` — Scripts for merging trace fragments into `trace.json` and opening Perfetto.

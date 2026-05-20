@@ -15,7 +15,7 @@
 </div>
 
 > 🚀 **Actively developed.** AppleTrace is a lightweight, embeddable tracer that
-> produces shareable Chrome/Perfetto traces. See [ROADMAP.md](ROADMAP.md) for
+> produces shareable Perfetto traces. See [ROADMAP.md](ROADMAP.md) for
 > what's planned next.
 
 ## What's New
@@ -23,8 +23,10 @@
 - **Faster `objc_msgSend` hook** — `(Class, SEL)` name interning plus a
   zero-allocation per-thread call stack remove the per-message `malloc`/`snprintf`
   churn from the hot path.
-- **Thread names** — traces now label each thread (Perfetto/Chrome show real
-  names instead of bare ids).
+- **Thread names** — traces now label each thread (Perfetto shows real names
+  instead of bare ids).
+- **Per-thread batched writing** — events accumulate in per-thread buffers and
+  flush in bulk, removing the per-event dispatch from the hot path.
 - **More event types** — `APTInstant` markers and `APTCounter` series (memory,
   FPS, custom metrics) in addition to begin/end sections.
 - **Runtime filtering** — limit automatic tracing with class-prefix allow/deny
@@ -43,9 +45,9 @@
 
 ## 🎯 What is AppleTrace?
 
-AppleTrace is an iOS tracing toolkit
+AppleTrace is an iOS/macOS tracing toolkit that captures your app's execution timeline and renders it in [Perfetto](https://ui.perfetto.dev).
 
-![AppleTrace Demo](https://everettjf.github.io/stuff/appletrace/appletrace.gif) that captures your app's execution timeline and renders it in [Perfetto](https://ui.perfetto.dev).
+![AppleTrace Demo](https://everettjf.github.io/stuff/appletrace/appletrace.gif)
 
 ![AppleTrace Demo](image/appletrace-small.png)
 
@@ -59,9 +61,9 @@ AppleTrace is an iOS tracing toolkit
 
 ### Current Hook Status
 
-- Stable path: manual sections plus delayed `objc_msgSend` hook installation are covered by simulator smoke tests.
-- Experimental path: app-owned nested Objective-C sends, `objc_msgSendSuper2`, cross-thread events, a 10-argument Objective-C call, floating-point argument/return handling, and small aggregate return values are now covered by a second simulator trace scenario.
-- Recommended release posture: ship the current direct hook as an arm64/arm64e preview (arm64e auto-hook still needs on-device ptrauth validation), with manual sections available as the lowest-risk baseline.
+- **Manual sections** are the lowest-risk baseline and work on every iOS/macOS version.
+- **Direct `objc_msgSend` / `objc_msgSendSuper2` hook** (arm64/arm64e) is covered by simulator smoke tests — including nested sends, `super` dispatch, cross-thread events, a 10-argument call, and floating-point / small-aggregate ABI cases.
+- The **arm64e auto-hook** still needs on-device pointer-authentication validation; treat it as a preview there.
 
 ### Use Cases
 
@@ -267,17 +269,20 @@ NSLog(@"trace dir = %s", APTGetTraceDirectory());
 
 ### Dynamic Hook Mode
 
-```bash
-# 1. Build your app with AppleTraceLoader
-# 2. Run under LLDB
-lldb YourApp.app
+On arm64/arm64e you can trace every `objc_msgSend` automatically.
 
-# 3. Load the dynamic library
-(lldb) command script import loader/AppleTraceLoader.py
-(lldb) AppleTraceLoader.load()
-
-# 4. Run your app - all objc_msgSend calls will be traced
+```objc
+// From your app, after launch:
+APTInstallObjcMsgSendHook();
 ```
+
+```bash
+# Or without code changes, via environment variable:
+export APPLETRACE_AUTO_HOOK_OBJC_MSGSEND=1
+```
+
+Scope it with `APPLETRACE_TRACE_CLASS_ALLOW` / `APPLETRACE_TRACE_CLASS_DENY`. For
+injecting into third-party apps, see the `loader/` project.
 
 ### Processing Traces
 
@@ -369,7 +374,7 @@ Yes! See the Chinese guide: [搭载MonkeyDev可 trace 第三方 App](http://ever
 
 ### Q: Why is Python 3 required?
 
-Python 2.x reached end-of-life in 2020. AppleTrace now requires Python 3.8+ for security and compatibility.
+Python 2.x reached end-of-life in 2020. AppleTrace now requires Python 3.9+ for security and compatibility.
 
 ### Q: Can I use this on macOS apps?
 
@@ -398,14 +403,15 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 ### Testing
 
 ```bash
-# Build the framework
-xcodebuild -project appletrace/appletrace.xcodeproj \
-  -scheme appletrace \
-  -configuration Release \
-  -sdk iphonesimulator build
+# Python tooling
+python3 -m pytest tests
 
-# Run merge script
-python3 merge.py -d sampledata/
+# objc_msgSend hook smoke tests (build + run on a simulator)
+./scripts/test_objc_msgsend_hook.sh
+./scripts/test_objc_msgsend_hook_experimental.sh
+
+# Batched-writer concurrency stress test (host build)
+./scripts/test_batching_stress.sh
 ```
 
 ---
