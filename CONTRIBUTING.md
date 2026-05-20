@@ -8,7 +8,6 @@ set up, what we expect from changes, and how to validate them.
 ```bash
 git clone https://github.com/everettjf/AppleTrace.git
 cd AppleTrace
-sh get_catapult.sh                       # optional, for offline HTML export
 python3 -m pip install -r requirements.txt
 ```
 
@@ -18,9 +17,9 @@ recent Python 3 for the tooling and tests.
 ## Project Layout
 
 - `appletrace/` — core tracing framework (Objective-C/C++ runtime, public headers).
-- `appletrace/appletrace/src/objc/hook_objc_msgSend.m` — arm64 `objc_msgSend` hook.
+- `appletrace/appletrace/src/objc/hook_objc_msgSend.m` — arm64/arm64e `objc_msgSend` hook.
 - `loader/`, `springboard/` — loader/packaging projects.
-- `merge.py`, `scripts/appletrace_cli.py`, `go.sh`, `get_catapult.sh` — tooling.
+- `merge.py`, `scripts/appletrace_cli.py`, `go.sh` — tooling (merge + open in Perfetto).
 - `tests/` — Python regression tests.
 
 See [AGENT.md](AGENT.md) for a deeper map and build/release details, and
@@ -29,8 +28,8 @@ See [AGENT.md](AGENT.md) for a deeper map and build/release details, and
 ## Making Changes
 
 - Keep changes scoped: don't mix instrumentation, tooling, and docs in one PR.
-- The `objc_msgSend` hook is arm64-only — preserve that assumption unless you are
-  explicitly widening platform support.
+- The `objc_msgSend` hook targets arm64/arm64e only — preserve that assumption
+  (other architectures are out of scope).
 - Avoid adding work to the tracing hot path; prefer caching/interning and
   per-thread state over per-event allocation.
 - Update `README.md` / `README_CN.md` / `AGENT.md` when workflows or APIs change.
@@ -50,7 +49,7 @@ python3 merge.py -d <path-to-appletracedata>
 ```
 
 When touching the framework, build the relevant Xcode targets and confirm a
-trace renders correctly in [Perfetto](https://ui.perfetto.dev) or Chrome.
+trace renders correctly in [Perfetto](https://ui.perfetto.dev).
 
 ## Code Style
 

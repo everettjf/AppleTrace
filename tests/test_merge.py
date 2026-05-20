@@ -39,10 +39,31 @@ class MergeTraceDirectoryTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            output = merge_trace_directory(directory)
+            output = merge_trace_directory(directory, complete_events=False)
             merged = json.loads(output.read_text(encoding="utf-8"))
 
             self.assertEqual([event["name"] for event in merged], ["A", "A", "B"])
+
+    def test_merge_defaults_to_complete_events(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / "trace.appletrace").write_text(
+                '\n'.join(
+                    [
+                        '{"name":"A","ph":"B","pid":1,"tid":0,"ts":1}',
+                        '{"name":"A","ph":"E","pid":1,"tid":0,"ts":4}',
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            output = merge_trace_directory(directory)
+            merged = json.loads(output.read_text(encoding="utf-8"))
+
+            self.assertEqual(len(merged), 1)
+            self.assertEqual(merged[0]["ph"], "X")
+            self.assertEqual(merged[0]["dur"], 3)
 
     def test_merge_stops_on_non_json_tail(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -95,6 +116,14 @@ class CompleteEventsTests(unittest.TestCase):
             {"name": "thread_name", "ph": "M", "pid": 1, "tid": 0, "args": {"name": "Main"}},
             {"name": "fps", "ph": "C", "pid": 1, "tid": 0, "ts": 1, "args": {"value": 60}},
             {"name": "mark", "ph": "i", "pid": 1, "tid": 0, "ts": 2, "s": "t"},
+        ]
+        result = list(iter_complete_events(events))
+        self.assertEqual(result, events)
+
+    def test_async_events_pass_through(self) -> None:
+        events = [
+            {"name": "load", "ph": "b", "id": 7, "pid": 1, "tid": 0, "ts": 1},
+            {"name": "load", "ph": "e", "id": 7, "pid": 1, "tid": 2, "ts": 9},
         ]
         result = list(iter_complete_events(events))
         self.assertEqual(result, events)

@@ -364,6 +364,25 @@ public:
         });
     }
 
+    // Nestable async events ("b"/"e"): used to track work that flows across
+    // threads or dispatch queues, matched by (name, async_id).
+    void WriteAsync(const char *name, const char *phase, uint64_t async_id) {
+        if (!IsEnabled() || !name || name[0] == '\0' || !queue_) {
+            return;
+        }
+
+        const uint64_t thread_id = ResolveThreadId();
+        const uint64_t elapsed_us = (CurrentTimeNs() - begin_) / 1000;
+        std::string line =
+            "{\"name\":\"" + EscapeJSONString(name) +
+            "\",\"cat\":\"appletrace\",\"ph\":\"" + phase + "\",\"id\":" + std::to_string(async_id) +
+            ",\"pid\":" + std::to_string(pid_) + ",\"tid\":" + std::to_string(thread_id) +
+            ",\"ts\":" + std::to_string(elapsed_us) + "}";
+        dispatch_async(queue_, ^{
+            log_.AddLine(line);
+        });
+    }
+
     void Flush() {
         if (!queue_) {
             return;
@@ -471,6 +490,14 @@ public:
         trace_.WriteCounter(name, value);
     }
 
+    void AsyncBegin(const char *name, uint64_t async_id) {
+        trace_.WriteAsync(name, "b", async_id);
+    }
+
+    void AsyncEnd(const char *name, uint64_t async_id) {
+        trace_.WriteAsync(name, "e", async_id);
+    }
+
     void Flush() {
         trace_.Flush();
     }
@@ -517,6 +544,14 @@ void APTInstant(const char *name) {
 
 void APTCounter(const char *name, double value) {
     appletrace::TraceManager::Instance().Counter(name, value);
+}
+
+void APTAsyncBegin(const char *name, uint64_t async_id) {
+    appletrace::TraceManager::Instance().AsyncBegin(name, async_id);
+}
+
+void APTAsyncEnd(const char *name, uint64_t async_id) {
+    appletrace::TraceManager::Instance().AsyncEnd(name, async_id);
 }
 
 void APTSyncWait() {

@@ -1,9 +1,15 @@
 /**
  * AppleTrace objc_msgSend tracing without HookZz.
  *
- * This arm64-only implementation uses fishhook-style symbol rebinding plus
- * an assembly wrapper so objc_msgSend arguments and return registers survive
- * the tracing callbacks.
+ * Targets arm64 and arm64e. It uses fishhook-style symbol rebinding plus an
+ * assembly wrapper so objc_msgSend arguments and return registers survive the
+ * tracing callbacks.
+ *
+ * Note for arm64e: callers branch to objc_msgSend through authenticated GOT
+ * entries (`__DATA_CONST.__auth_got`). Rebinding those to a raw wrapper pointer
+ * requires re-signing the pointer with the correct ptrauth context, which must
+ * be validated on a real arm64e device. Manual sections and the explicit
+ * event APIs work on arm64e regardless of the auto-hook.
  */
 
 #import <Foundation/Foundation.h>
@@ -25,7 +31,7 @@
 #import "appletrace.h"
 
 #if !defined(__arm64__)
-#error AppleTrace objc_msgSend hook currently supports arm64 only.
+#error AppleTrace objc_msgSend hook supports arm64 and arm64e only.
 #endif
 
 typedef void (*APTObjcMsgSendFunction)(void);

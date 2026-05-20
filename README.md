@@ -29,9 +29,11 @@
   FPS, custom metrics) in addition to begin/end sections.
 - **Runtime filtering** — limit automatic tracing with class-prefix allow/deny
   lists (`APPLETRACE_TRACE_CLASS_ALLOW` / `APPLETRACE_TRACE_CLASS_DENY`).
-- **Perfetto-first visualization** — open `trace.json` at
-  [ui.perfetto.dev](https://ui.perfetto.dev) with no download required (Catapult
-  HTML export remains available offline).
+- **Perfetto visualization** — open `trace.json` at
+  [ui.perfetto.dev](https://ui.perfetto.dev) directly in the browser, no download
+  required. Begin/end pairs are exported as `X` complete events by default.
+- **Async/flow events** — `APTAsyncBegin`/`APTAsyncEnd` track work that crosses
+  threads or dispatch queues.
 - Python 3 tooling with a unified CLI (`scripts/appletrace_cli.py`), automated
   tests, GitHub Actions CI, and streaming trace merging for large captures.
 - Runtime controls: `APTFlush`, `APTSetEnabled`, `APTIsEnabled`,
@@ -43,23 +45,23 @@
 
 AppleTrace is an iOS tracing toolkit
 
-![AppleTrace Demo](https://everettjf.github.io/stuff/appletrace/appletrace.gif) that captures your app's execution timeline and renders it with Chrome's tracing tools.
+![AppleTrace Demo](https://everettjf.github.io/stuff/appletrace/appletrace.gif) that captures your app's execution timeline and renders it in [Perfetto](https://ui.perfetto.dev).
 
 ![AppleTrace Demo](image/appletrace-small.png)
 
 ### Key Features
 
-- 📊 **Method Tracing** - Directly rebind `objc_msgSend` on arm64 to capture Objective-C method activity
+- 📊 **Method Tracing** - Directly rebind `objc_msgSend` on arm64/arm64e to capture Objective-C method activity
 - 🎯 **Custom Sections** - Define custom trace sections with APTBeginSection/APTEndSection
 - 📈 **Call Graph** - Visualize call relationships and execution flow
-- 🌐 **Chrome Integration** - Export traces to chrome://tracing or generate shareable HTML reports
+- 🌐 **Perfetto Integration** - Open traces in [ui.perfetto.dev](https://ui.perfetto.dev) — no install, runs in the browser
 - 🔧 **Dual Modes** - Manual instrumentation or dynamic hooking via direct `objc_msgSend` rebinding
 
 ### Current Hook Status
 
 - Stable path: manual sections plus delayed `objc_msgSend` hook installation are covered by simulator smoke tests.
 - Experimental path: app-owned nested Objective-C sends, `objc_msgSendSuper2`, cross-thread events, a 10-argument Objective-C call, floating-point argument/return handling, and small aggregate return values are now covered by a second simulator trace scenario.
-- Recommended release posture: ship the current direct hook as an arm64 preview, with manual sections still available as the lowest-risk baseline.
+- Recommended release posture: ship the current direct hook as an arm64/arm64e preview (arm64e auto-hook still needs on-device ptrauth validation), with manual sections available as the lowest-risk baseline.
 
 ### Use Cases
 
@@ -81,9 +83,6 @@ brew install python ldid git
 # Clone the repository
 git clone https://github.com/everettjf/AppleTrace.git
 cd AppleTrace
-
-# Download Catapult tooling
-sh get_catapult.sh
 
 # Optional but recommended: install Python tooling
 python3 -m pip install -r requirements.txt
@@ -107,7 +106,7 @@ python3 -m pip install -r requirements.txt
 #### Mode B: Dynamic Hooking (Advanced)
 
 ```bash
-# Requires arm64 and explicit hook installation
+# Requires arm64/arm64e and explicit hook installation
 # Call APTInstallObjcMsgSendHook() after app launch
 ```
 
@@ -117,23 +116,18 @@ python3 -m pip install -r requirements.txt
 # Run your app on simulator/device
 # Traces are saved to /Library/appletracedata
 
-# Merge trace files
+# Merge trace files into trace.json
 python3 merge.py -d /Library/appletracedata
 
-# Generate HTML report (requires Catapult)
+# Merge and open Perfetto in one step
 sh go.sh /Library/appletracedata
-
-# Open in Chrome
-open /Library/appletracedata/trace.html
 ```
 
 ### 4. View Results
 
-- **Option 1 (recommended):** Open [ui.perfetto.dev](https://ui.perfetto.dev) and
-  drag in `trace.json` — runs in the browser, scales to large traces, no download
-- **Option 2:** Open `trace.html` directly in Chrome (offline Catapult export)
-- **Option 3:** Drag `trace.json` into chrome://tracing
-- **Option 4:** Use the [online demo](sampledata/trace.html)
+Open [ui.perfetto.dev](https://ui.perfetto.dev) and drag in `trace.json` (or use
+**Open trace file**). It runs entirely in the browser, scales to large traces,
+and needs no install.
 
 ---
 
@@ -144,9 +138,9 @@ open /Library/appletracedata/trace.html
 | Requirement | Version | Description |
 |-------------|---------|-------------|
 | **macOS** | 10.15+ | Build environment |
-| **Xcode** | 12+ | iOS/macOS development |
+| **Xcode** | 12+ | iOS/macOS development (arm64/arm64e) |
 | **Python** | 3.9+ | Trace processing scripts and test tooling |
-| **Chrome** | Any | Trace visualization |
+| **Perfetto** | Web | Trace visualization at [ui.perfetto.dev](https://ui.perfetto.dev) |
 | **LLDB** | (Optional) | Dynamic hook mode |
 
 ### Setup Steps
@@ -156,14 +150,11 @@ open /Library/appletracedata/trace.html
 git clone https://github.com/everettjf/AppleTrace.git
 cd AppleTrace
 
-# 2. Download Catapult (required for HTML export)
-sh get_catapult.sh
-
-# 3. Build the framework
+# 2. Build the framework
 cd appletrace/appletrace.xcodeproj
 xcodebuild -project appletrace.xcodeproj -scheme appletrace -configuration Release build
 
-# 4. (Optional) Install signing tool for iOS
+# 3. (Optional) Install signing tool for iOS
 brew install ldid
 ```
 
@@ -185,10 +176,9 @@ AppleTrace/
 ├── image/                   # Documentation images
 ├── sampledata/              # Demo trace files
 ├── scripts/                 # Utility scripts
-│   └── appletrace_cli.py    # Merge + HTML generation CLI
-├── merge.py                 # Merge trace files
-├── go.sh                    # One-shot merge + HTML generation
-├── get_catapult.sh          # Download Catapult
+│   └── appletrace_cli.py    # Merge + open-in-Perfetto CLI
+├── merge.py                 # Merge trace files into trace.json
+├── go.sh                    # Merge and open Perfetto
 ├── requirements.txt         # Python dependencies
 ├── tests/                   # Python regression tests
 ├── README.md               # English documentation
@@ -238,7 +228,7 @@ void saferCppFunction() {
 }
 ```
 
-### Instant Markers & Counters
+### Instant Markers, Counters & Async Events
 
 ```objc
 // Mark a point in time on the current thread's timeline
@@ -247,6 +237,14 @@ APTInstant("cache_miss");
 // Plot a value over time (memory, FPS, queue depth, ...)
 APTCounter("resident_mb", 142.5);
 APTCounter("fps", 60);
+
+// Track work that crosses threads / dispatch queues (matched by name + id)
+uint64_t requestID = 42;
+APTAsyncBegin("image_load", requestID);
+dispatch_async(queue, ^{
+    // ... work on another thread ...
+    APTAsyncEnd("image_load", requestID);
+});
 ```
 
 ### Dynamic Hooking Smoke Test
@@ -284,26 +282,21 @@ lldb YourApp.app
 ### Processing Traces
 
 ```bash
-# Merge all trace files
+# Merge all trace files into trace.json (X complete events by default)
 python3 merge.py -d /path/to/appletracedata
 
-# Smaller output: collapse begin/end pairs into X complete events
-python3 merge.py -d /path/to/appletracedata --complete
+# Keep raw begin/end events instead of collapsing them
+python3 merge.py -d /path/to/appletracedata --raw
 
 # Or use the unified CLI
 python3 scripts/appletrace_cli.py merge /path/to/appletracedata
 
-# Generate HTML (requires Catapult)
-python3 catapult/tracing/bin/trace2html \
-  /path/to/appletracedata/trace.json \
-  --output=/path/to/appletracedata/trace.html
-
-# Or use the helper script
+# Merge and open Perfetto in one step
+python3 scripts/appletrace_cli.py open /path/to/appletracedata
 sh go.sh /path/to/appletracedata
-
-# One-shot merge + HTML via CLI
-python3 scripts/appletrace_cli.py all /path/to/appletracedata --open
 ```
+
+Then drag the resulting `trace.json` into [ui.perfetto.dev](https://ui.perfetto.dev).
 
 ### Runtime Environment Variables
 
@@ -313,7 +306,7 @@ export APPLETRACE_DATA_DIR="$HOME/tmp/appletracedata"
 export APPLETRACE_BLOCK_SIZE_MB=32
 export APPLETRACE_KEEP_EXISTING=1
 
-# Automatic objc_msgSend hook (arm64)
+# Automatic objc_msgSend hook (arm64/arm64e)
 export APPLETRACE_AUTO_HOOK_OBJC_MSGSEND=1
 # Only trace classes with these comma-separated prefixes
 export APPLETRACE_TRACE_CLASS_ALLOW="MyApp,UI"
@@ -333,9 +326,8 @@ export APPLETRACE_TRACE_CLASS_DENY="NSKVO,_"
 ![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python)
 ![Xcode](https://img.shields.io/badge/Xcode-147EFB?style=flat-square&logo=xcode)
 
-**Key Dependencies**
-![HookZz](https://img.shields.io/badge/HookZz-FF6B6B?style=flat-square&logo=github)
-![Catapult](https://img.shields.io/badge/Catapult-4ECDC4?style=flat-square&logo=google-chrome)
+**Visualization & Tooling**
+![Perfetto](https://img.shields.io/badge/Perfetto-2E2E2E?style=flat-square&logo=google)
 ![LLDB](https://img.shields.io/badge/LLDB-1A73E8?style=flat-square&logo=llvm)
 
 </div>
@@ -346,9 +338,10 @@ export APPLETRACE_TRACE_CLASS_DENY="NSKVO,_"
 
 ### Interactive Demo
 
-Explore a pre-recorded trace directly in Chrome:
+Explore a pre-recorded trace in Perfetto:
 
-- 📂 **[Interactive Trace Demo](sampledata/trace.html)** - Open in Chrome to see AppleTrace in action
+- 📂 Open [ui.perfetto.dev](https://ui.perfetto.dev) and drag in
+  [`sampledata/trace.json`](sampledata/trace.json) to see AppleTrace in action.
 
 ![Demo Preview](image/appletrace-small.png)
 
@@ -427,19 +420,15 @@ AppleTrace is released under the MIT License. See [LICENSE](LICENSE) for details
 
 <div align="center">
 
-**Core Dependencies**
+**Visualization**
 
-<a href="https://github.com/jmpews/HookZz">
-  <img src="https://img.shields.io/badge/HookZz-FF6B6B?style=for-the-badge&logo=github" />
-</a>
-
-<a href="https://github.com/catapult-project/catapult">
-  <img src="https://img.shields.io/badge/Catapult-4ECDC4?style=for-the-badge&logo=github" />
+<a href="https://perfetto.dev">
+  <img src="https://img.shields.io/badge/Perfetto-2E2E2E?style=for-the-badge&logo=google" />
 </a>
 
 **Inspired by**
 - Facebook's [fbtrace](https://github.com/facebookarchive/fbtrace)
-- Google's [Chrome Tracing](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool)
+- Google's [Perfetto](https://perfetto.dev) and the [Trace Event Format](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview)
 
 </div>
 

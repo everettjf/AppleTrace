@@ -100,7 +100,7 @@ def iter_complete_events(events: Iterable[dict]) -> Iterable[dict]:
 def merge_trace_directory(
     directory: Path,
     output_path: Path | None = None,
-    complete_events: bool = False,
+    complete_events: bool = True,
 ) -> Path:
     """Merge all trace fragments under a directory into `trace.json`."""
     if not directory.exists():
@@ -148,10 +148,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional output JSON path. Defaults to <dir>/trace.json.",
     )
     parser.add_argument(
-        "--complete",
-        dest="complete",
+        "--raw",
+        dest="raw",
         action="store_true",
-        help="Collapse begin/end pairs into X complete events (smaller output).",
+        help="Emit raw begin/end events instead of collapsing into X complete events.",
     )
     return parser
 
@@ -162,7 +162,7 @@ def main() -> int:
     output_path = Path(args.output).expanduser().resolve() if args.output else None
 
     try:
-        merged_path = merge_trace_directory(directory, output_path, args.complete)
+        merged_path = merge_trace_directory(directory, output_path, not args.raw)
     except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
         print(f"error: {exc}")
         return 1

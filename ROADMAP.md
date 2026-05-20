@@ -6,13 +6,16 @@
 
 ## 1. Where We Are Today
 
-- **Tracing backends**: manual `APTBeginSection`/`APTEndSection` markers, plus an
-  arm64-only direct `objc_msgSend` / `objc_msgSendSuper2` rebind
+- **Platform**: arm64 and arm64e only.
+- **Tracing backends**: manual `APTBeginSection`/`APTEndSection` markers (plus
+  `APTInstant` / `APTCounter` / `APTAsyncBegin` / `APTAsyncEnd`), plus a direct
+  `objc_msgSend` / `objc_msgSendSuper2` rebind
   (`appletrace/appletrace/src/objc/hook_objc_msgSend.m`).
 - **Runtime**: a single serial dispatch queue serializes one JSON line per event
   into an mmap-backed file (`appletrace/appletrace/src/appletrace.mm`).
 - **Tooling**: `merge.py` / `scripts/appletrace_cli.py` merge fragments into a
-  Chrome JSON array; `go.sh` + `get_catapult.sh` render HTML via Google Catapult.
+  Perfetto-compatible `trace.json`; `go.sh` opens it in Perfetto.
+- **Visualization**: Perfetto-only (`ui.perfetto.dev`); no Catapult/Chrome HTML.
 - **CI**: Python merge tests + two simulator smoke tests (`.github/workflows`).
 
 ## 2. Optimization Opportunities
@@ -41,23 +44,21 @@ Recommended redesign:
 
 ### 2.2 Visualization pipeline modernization (highest ROI / lowest risk)
 
-The HTML pipeline depends on Google's **deprecated Catapult `trace2html`**
-(`get_catapult.sh`, `go.sh`). The modern standard is **Perfetto**
-(`ui.perfetto.dev`), which ingests the same Chrome JSON, runs entirely in the
-browser (no multi-hundred-MB download), and scales to far larger traces.
-
-- Make Perfetto the documented default ("open trace.json at ui.perfetto.dev").
-- Keep Catapult as an optional offline path.
+- ✅ Visualization is now **Perfetto-only** (`ui.perfetto.dev`): it ingests the
+  Chrome JSON `trace.json`, runs entirely in the browser (no download), and
+  scales to far larger traces. The deprecated Catapult `trace2html` pipeline
+  (`get_catapult.sh`, the HTML demo) has been removed.
 - Longer term: emit the Perfetto protobuf format for streaming + smaller files.
 
 ### 2.3 Trace format & expressiveness
 
-- ✅ Support `X` (complete) events to roughly halve file size vs. paired
-  `B`/`E` (`merge.py --complete`).
-- ✅ Emit `thread_name` metadata events so threads are labeled in
-  Perfetto/Chrome (previously only `process_name` was written).
-- ✅ Add **counter** (`APTCounter`) and **instant** (`APTInstant`) events.
-  Async/flow events to track work across dispatch queues are still open.
+- ✅ Export `X` (complete) events by default to roughly halve file size vs.
+  paired `B`/`E` (`merge.py`; `--raw` keeps the unpaired form).
+- ✅ Emit `thread_name` metadata events so threads are labeled in Perfetto
+  (previously only `process_name` was written).
+- ✅ Add **counter** (`APTCounter`), **instant** (`APTInstant`), and
+  **async/flow** (`APTAsyncBegin` / `APTAsyncEnd`) events to track work across
+  dispatch queues.
 - ✅ Stream `merge.py` output instead of loading every event into memory, so
   large captures don't exhaust RAM.
 
@@ -71,8 +72,9 @@ browser (no multi-hundred-MB download), and scales to far larger traces.
 ### 2.5 Housekeeping
 
 - ✅ Add the `CONTRIBUTING.md` that the README references.
-- Document the arm64-only constraint of the hook prominently and consider an
-  x86_64-simulator path for broader CI.
+- ✅ Scope the project to arm64/arm64e and document it; x86_64 is out of scope.
+- Validate the arm64e auto-hook on device (rebinding through authenticated
+  `__auth_got` entries needs ptrauth re-signing).
 
 ## 3. Competitive Comparison
 
@@ -90,10 +92,10 @@ should lean into that rather than chasing Frida's full feature set.
 ## 4. Phased Plan
 
 ### Phase 1 — Modernize visualization (low risk, high value)
-- ✅ Document Perfetto (`ui.perfetto.dev`) as the default viewer in README.
+- ✅ Make Perfetto (`ui.perfetto.dev`) the only viewer; remove Catapult/Chrome.
 - ✅ Add a `thread_name` metadata event so threads are labeled.
 - ✅ Stream `merge.py` output.
-- ✅ Collapse begin/end pairs into `X` complete events (`merge.py --complete`),
+- ✅ Collapse begin/end pairs into `X` complete events by default,
   roughly halving section-event count.
 
 ### Phase 2 — Hot-path performance
@@ -103,11 +105,11 @@ should lean into that rather than chasing Frida's full feature set.
 - Defer JSON formatting to the exporter; emit binary events at runtime.
 
 ### Phase 3 — Expressiveness & control
-- ✅ Add `APTInstant` and `APTCounter` event APIs.
+- ✅ Add `APTInstant`, `APTCounter`, and `APTAsyncBegin`/`APTAsyncEnd` event APIs.
 - ✅ Add runtime class-prefix allow/deny lists.
-- Add async/flow events to track work across dispatch queues.
 
 ### Phase 4 — Reach & polish
 - ✅ Add `CONTRIBUTING.md`.
-- Clarify arm64-only constraints; explore x86_64-simulator support for CI.
+- ✅ Scope to arm64/arm64e.
+- Validate the arm64e auto-hook on device (ptrauth-signed `__auth_got`).
 - Explore an `os_signpost` backend and/or Perfetto protobuf export.
