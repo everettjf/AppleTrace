@@ -36,7 +36,9 @@ def maybe_open(path: Path, should_open: bool) -> None:
 
 def cmd_merge(args: argparse.Namespace) -> int:
     output = Path(args.output).expanduser().resolve() if args.output else None
-    merged = merge_trace_directory(Path(args.directory).expanduser().resolve(), output)
+    merged = merge_trace_directory(
+        Path(args.directory).expanduser().resolve(), output, args.complete
+    )
     print(merged)
     return 0
 
@@ -63,7 +65,7 @@ def cmd_html(args: argparse.Namespace) -> int:
 
 def cmd_all(args: argparse.Namespace) -> int:
     directory = Path(args.directory).expanduser().resolve()
-    merged = merge_trace_directory(directory)
+    merged = merge_trace_directory(directory, complete_events=args.complete)
     html_args = argparse.Namespace(
         trace_json=str(merged),
         output=args.output,
@@ -80,6 +82,11 @@ def build_parser() -> argparse.ArgumentParser:
     merge_parser = subparsers.add_parser("merge", help="Merge .appletrace fragments.")
     merge_parser.add_argument("directory", help="Directory containing .appletrace files.")
     merge_parser.add_argument("-o", "--output", help="Output JSON path.")
+    merge_parser.add_argument(
+        "--complete",
+        action="store_true",
+        help="Collapse begin/end pairs into X complete events (smaller output).",
+    )
     merge_parser.set_defaults(func=cmd_merge)
 
     html_parser = subparsers.add_parser("html", help="Generate HTML via Catapult trace2html.")
@@ -94,6 +101,11 @@ def build_parser() -> argparse.ArgumentParser:
     all_parser.add_argument("-o", "--output", help="Output HTML path.")
     all_parser.add_argument("--catapult", help="Path to Catapult trace2html script.")
     all_parser.add_argument("--open", action="store_true", help="Open the generated HTML.")
+    all_parser.add_argument(
+        "--complete",
+        action="store_true",
+        help="Collapse begin/end pairs into X complete events (smaller output).",
+    )
     all_parser.set_defaults(func=cmd_all)
 
     return parser

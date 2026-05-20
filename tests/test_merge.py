@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from merge import list_trace_files, merge_trace_directory
+from merge import iter_complete_events, list_trace_files, merge_trace_directory
 
 
 class MergeTraceDirectoryTests(unittest.TestCase):
@@ -66,6 +66,54 @@ class MergeTraceDirectoryTests(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 merge_trace_directory(directory)
+
+
+class CompleteEventsTests(unittest.TestCase):
+    def test_matched_pair_becomes_complete_event(self) -> None:
+        events = [
+            {"name": "A", "ph": "B", "pid": 1, "tid": 0, "ts": 10},
+            {"name": "A", "ph": "E", "pid": 1, "tid": 0, "ts": 25},
+        ]
+        result = list(iter_complete_events(events))
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["ph"], "X")
+        self.assertEqual(result[0]["dur"], 15)
+        self.assertEqual(result[0]["name"], "A")
+
+    def test_nested_pairs_pair_lifo(self) -> None:
+        events = [
+            {"name": "outer", "ph": "B", "pid": 1, "tid": 0, "ts": 0},
+            {"name": "inner", "ph": "B", "pid": 1, "tid": 0, "ts": 5},
+            {"name": "inner", "ph": "E", "pid": 1, "tid": 0, "ts": 8},
+            {"name": "outer", "ph": "E", "pid": 1, "tid": 0, "ts": 20},
+        ]
+        result = list(iter_complete_events(events))
+        self.assertEqual([(e["name"], e["dur"]) for e in result], [("inner", 3), ("outer", 20)])
+
+    def test_non_section_events_pass_through(self) -> None:
+        events = [
+            {"name": "thread_name", "ph": "M", "pid": 1, "tid": 0, "args": {"name": "Main"}},
+            {"name": "fps", "ph": "C", "pid": 1, "tid": 0, "ts": 1, "args": {"value": 60}},
+            {"name": "mark", "ph": "i", "pid": 1, "tid": 0, "ts": 2, "s": "t"},
+        ]
+        result = list(iter_complete_events(events))
+        self.assertEqual(result, events)
+
+    def test_unmatched_begin_is_preserved(self) -> None:
+        events = [{"name": "dangling", "ph": "B", "pid": 1, "tid": 0, "ts": 3}]
+        result = list(iter_complete_events(events))
+        self.assertEqual(result, events)
+
+    def test_pairs_are_isolated_per_thread(self) -> None:
+        events = [
+            {"name": "A", "ph": "B", "pid": 1, "tid": 0, "ts": 0},
+            {"name": "B", "ph": "B", "pid": 1, "tid": 1, "ts": 1},
+            {"name": "A", "ph": "E", "pid": 1, "tid": 0, "ts": 4},
+            {"name": "B", "ph": "E", "pid": 1, "tid": 1, "ts": 9},
+        ]
+        result = list(iter_complete_events(events))
+        durations = {e["name"]: e["dur"] for e in result}
+        self.assertEqual(durations, {"A": 4, "B": 8})
 
 
 if __name__ == "__main__":

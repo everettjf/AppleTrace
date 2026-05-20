@@ -52,25 +52,25 @@ browser (no multi-hundred-MB download), and scales to far larger traces.
 
 ### 2.3 Trace format & expressiveness
 
-- Support `X` (complete) events to roughly halve file size vs. paired `B`/`E`.
-- Emit `thread_name` metadata events (today only `process_name` is written,
-  `appletrace.mm:367`), so threads are labeled in Perfetto/Chrome.
-- Add **counter** events (memory, FPS), **instant** markers, and **async/flow**
-  events to track work across dispatch queues — the most useful profiling axes.
-- Stream `merge.py` output instead of `list()`-ing all events in memory
-  (`merge.py:73`) so large captures don't exhaust RAM.
+- ✅ Support `X` (complete) events to roughly halve file size vs. paired
+  `B`/`E` (`merge.py --complete`).
+- ✅ Emit `thread_name` metadata events so threads are labeled in
+  Perfetto/Chrome (previously only `process_name` was written).
+- ✅ Add **counter** (`APTCounter`) and **instant** (`APTInstant`) events.
+  Async/flow events to track work across dispatch queues are still open.
+- ✅ Stream `merge.py` output instead of loading every event into memory, so
+  large captures don't exhaust RAM.
 
 ### 2.4 Filtering & control
 
-- Add runtime class-prefix allow/deny lists. The existing range-based filter is
-  effectively dead because `gLogAllSelectors`/`gLogAllClasses` default to `YES`
-  (`hook_objc_msgSend.m:308`).
-- Add a sampling mode (trace 1/N sends) to bound overhead on hot apps.
+- ✅ Add runtime class-prefix allow/deny lists
+  (`APPLETRACE_TRACE_CLASS_ALLOW` / `APPLETRACE_TRACE_CLASS_DENY`).
+- A sampling mode (trace 1/N sends) is intentionally deferred: it does not
+  compose with the nested begin/end model, so it is not on the near-term plan.
 
 ### 2.5 Housekeeping
 
-- README references a `CONTRIBUTING.md` that does not exist — add it or drop the
-  link.
+- ✅ Add the `CONTRIBUTING.md` that the README references.
 - Document the arm64-only constraint of the hook prominently and consider an
   x86_64-simulator path for broader CI.
 
@@ -93,7 +93,8 @@ should lean into that rather than chasing Frida's full feature set.
 - ✅ Document Perfetto (`ui.perfetto.dev`) as the default viewer in README.
 - ✅ Add a `thread_name` metadata event so threads are labeled.
 - ✅ Stream `merge.py` output.
-- Emit `X` complete events to roughly halve file size.
+- ✅ Collapse begin/end pairs into `X` complete events (`merge.py --complete`),
+  roughly halving section-event count.
 
 ### Phase 2 — Hot-path performance
 - ✅ Introduce `(Class, SEL)` name interning.

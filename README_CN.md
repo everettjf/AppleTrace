@@ -38,6 +38,9 @@ python3 -m pip install -r requirements.txt
 # 合并 trace 片段
 python3 merge.py -d /path/to/appletracedata
 
+# 更小的输出：把 begin/end 对折叠成 X complete 事件
+python3 merge.py -d /path/to/appletracedata --complete
+
 # 推荐：把生成的 trace.json 拖入 https://ui.perfetto.dev 直接查看
 # 或离线生成 Catapult HTML：
 python3 scripts/appletrace_cli.py all /path/to/appletracedata --open

@@ -58,7 +58,50 @@ def iter_events(trace_files: Iterable[Path]) -> Iterable[dict]:
                 yield event
 
 
-def merge_trace_directory(directory: Path, output_path: Path | None = None) -> Path:
+def iter_complete_events(events: Iterable[dict]) -> Iterable[dict]:
+    """Collapse matched begin/end (`B`/`E`) pairs into `X` complete events.
+
+    A complete event carries an explicit duration, so this roughly halves the
+    number of section events. Pairing is LIFO per `(pid, tid)`, matching the
+    nested begin/end model AppleTrace emits. Non-section events pass through
+    untouched, and unmatched begins are emitted as raw `B` events (viewers
+    auto-close them at the end of the trace).
+    """
+    open_stacks: dict[tuple, List[dict]] = {}
+    for event in events:
+        phase = event.get("ph")
+        if phase == "B":
+            key = (event.get("pid"), event.get("tid"))
+            open_stacks.setdefault(key, []).append(event)
+        elif phase == "E":
+            key = (event.get("pid"), event.get("tid"))
+            stack = open_stacks.get(key)
+            if stack:
+                begin = stack.pop()
+                complete = dict(begin)
+                complete["ph"] = "X"
+                begin_ts = begin.get("ts", 0)
+                complete["dur"] = event.get("ts", begin_ts) - begin_ts
+                if "args" in event:
+                    merged = dict(begin.get("args", {}))
+                    merged.update(event["args"])
+                    complete["args"] = merged
+                yield complete
+            else:
+                yield event
+        else:
+            yield event
+
+    for stack in open_stacks.values():
+        for begin in stack:
+            yield begin
+
+
+def merge_trace_directory(
+    directory: Path,
+    output_path: Path | None = None,
+    complete_events: bool = False,
+) -> Path:
     """Merge all trace fragments under a directory into `trace.json`."""
     if not directory.exists():
         raise FileNotFoundError(f"Trace directory does not exist: {directory}")
@@ -70,10 +113,14 @@ def merge_trace_directory(directory: Path, output_path: Path | None = None) -> P
         raise FileNotFoundError(f"No trace fragments found in {directory}")
 
     target = output_path or directory / "trace.json"
+    source: Iterable[dict] = iter_events(trace_files)
+    if complete_events:
+        source = iter_complete_events(source)
+
     with target.open("w", encoding="utf-8") as handle:
         handle.write("[")
         first = True
-        for event in iter_events(trace_files):
+        for event in source:
             if not first:
                 handle.write(",")
             handle.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")))
@@ -100,6 +147,12 @@ def build_parser() -> argparse.ArgumentParser:
         dest="output",
         help="Optional output JSON path. Defaults to <dir>/trace.json.",
     )
+    parser.add_argument(
+        "--complete",
+        dest="complete",
+        action="store_true",
+        help="Collapse begin/end pairs into X complete events (smaller output).",
+    )
     return parser
 
 
@@ -109,7 +162,7 @@ def main() -> int:
     output_path = Path(args.output).expanduser().resolve() if args.output else None
 
     try:
-        merged_path = merge_trace_directory(directory, output_path)
+        merged_path = merge_trace_directory(directory, output_path, args.complete)
     except (FileNotFoundError, NotADirectoryError, ValueError) as exc:
         print(f"error: {exc}")
         return 1

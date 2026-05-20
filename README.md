@@ -287,6 +287,9 @@ lldb YourApp.app
 # Merge all trace files
 python3 merge.py -d /path/to/appletracedata
 
+# Smaller output: collapse begin/end pairs into X complete events
+python3 merge.py -d /path/to/appletracedata --complete
+
 # Or use the unified CLI
 python3 scripts/appletrace_cli.py merge /path/to/appletracedata
 
