@@ -101,8 +101,11 @@ should lean into that rather than chasing Frida's full feature set.
 ### Phase 2 — Hot-path performance
 - ✅ Introduce `(Class, SEL)` name interning.
 - ✅ Use a zero-allocation per-thread call stack (no per-message `malloc`).
-- Move event recording to per-thread ring buffers with bulk background flushing.
-- Defer JSON formatting to the exporter; emit binary events at runtime.
+- Move event recording to per-thread batched buffers with bulk background
+  flushing — design spec in
+  [docs/perf-batching-design.md](docs/perf-batching-design.md).
+- Defer JSON formatting to the exporter; emit binary events at runtime
+  (follow-on stage of the batching design).
 
 ### Phase 3 — Expressiveness & control
 - ✅ Add `APTInstant`, `APTCounter`, and `APTAsyncBegin`/`APTAsyncEnd` event APIs.
