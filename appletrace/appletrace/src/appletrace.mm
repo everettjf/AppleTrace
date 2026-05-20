@@ -6,10 +6,14 @@
 #import "appletrace.h"
 
 #include <atomic>
+#include <memory>
+#include <mutex>
 #include <string>
+#include <vector>
 
 #include <dispatch/dispatch.h>
 #include <mach/mach_time.h>
+#include <os/lock.h>
 #include <pthread.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -22,6 +26,10 @@ namespace {
 constexpr size_t kDefaultBlockSize = 16 * 1024 * 1024;
 constexpr size_t kMinimumBlockSize = 1 * 1024 * 1024;
 constexpr size_t kMaximumBlockSize = 256 * 1024 * 1024;
+
+// Per-thread accumulation buffer tunables (see docs/perf-batching-design.md).
+constexpr size_t kBatchFlushThresholdBytes = 32 * 1024;
+constexpr size_t kBatchReserveBytes = 64 * 1024;
 
 bool BoolFromEnvironment(NSString *key, bool fallback) {
     NSString *value = [[[NSProcessInfo processInfo] environment] objectForKey:key];
@@ -221,6 +229,25 @@ public:
         }
     }
 
+    // Writes a batch of newline-separated event lines. Splitting on '\n' and
+    // reusing AddLine keeps fragment rollover on line boundaries, so a JSON
+    // object is never split across two fragment files.
+    void AddBlock(const std::string &block) {
+        size_t start = 0;
+        const size_t size = block.size();
+        while (start < size) {
+            size_t newline = block.find('\n', start);
+            size_t end = (newline == std::string::npos) ? size : newline;
+            if (end > start) {
+                AddLine(block.substr(start, end - start));
+            }
+            if (newline == std::string::npos) {
+                break;
+            }
+            start = newline + 1;
+        }
+    }
+
     static NSString *CurrentDirectory() {
         InitializeWorkDirectory();
         return work_dir_;
@@ -279,12 +306,32 @@ private:
 std::atomic<int> LoggerManager::file_counter_{0};
 NSString *LoggerManager::work_dir_ = nil;
 
+class Trace;
+
+// Per-thread accumulation buffer. The hot path appends under `lock`; APTFlush
+// and thread-exit drain it. See docs/perf-batching-design.md.
+struct ThreadLog {
+    os_unfair_lock lock = OS_UNFAIR_LOCK_INIT;
+    std::string pending;
+};
+
+static pthread_key_t gThreadLogKey;
+static pthread_once_t gThreadLogKeyOnce = PTHREAD_ONCE_INIT;
+static Trace *gActiveTrace = nullptr;
+
+static void appletrace_thread_log_destructor(void *pointer);
+
+static void appletrace_make_thread_log_key() {
+    pthread_key_create(&gThreadLogKey, appletrace_thread_log_destructor);
+}
+
 class Trace {
 public:
     bool Open() {
         static dispatch_once_t once_token;
         dispatch_once(&once_token, ^{
             enabled_.store(BoolFromEnvironment(@"APPLETRACE_ENABLED", true));
+            gActiveTrace = this;
             if (!log_.Open()) {
                 return;
             }
@@ -323,9 +370,7 @@ public:
         const uint64_t thread_id = ResolveThreadId();
         const uint64_t elapsed_us = (CurrentTimeNs() - begin_) / 1000;
         std::string line = BuildEventLine(name, phase, thread_id, elapsed_us);
-        dispatch_async(queue_, ^{
-            log_.AddLine(line);
-        });
+        Emit(line);
     }
 
     void WriteInstant(const char *name) {
@@ -340,9 +385,7 @@ public:
             "\",\"cat\":\"appletrace\",\"ph\":\"i\",\"pid\":" + std::to_string(pid_) +
             ",\"tid\":" + std::to_string(thread_id) + ",\"ts\":" + std::to_string(elapsed_us) +
             ",\"s\":\"t\"}";
-        dispatch_async(queue_, ^{
-            log_.AddLine(line);
-        });
+        Emit(line);
     }
 
     void WriteCounter(const char *name, double value) {
@@ -359,9 +402,7 @@ public:
             "\",\"cat\":\"appletrace\",\"ph\":\"C\",\"pid\":" + std::to_string(pid_) +
             ",\"tid\":" + std::to_string(thread_id) + ",\"ts\":" + std::to_string(elapsed_us) +
             ",\"args\":{\"value\":" + value_buffer + "}}";
-        dispatch_async(queue_, ^{
-            log_.AddLine(line);
-        });
+        Emit(line);
     }
 
     // Nestable async events ("b"/"e"): used to track work that flows across
@@ -378,16 +419,35 @@ public:
             "\",\"cat\":\"appletrace\",\"ph\":\"" + phase + "\",\"id\":" + std::to_string(async_id) +
             ",\"pid\":" + std::to_string(pid_) + ",\"tid\":" + std::to_string(thread_id) +
             ",\"ts\":" + std::to_string(elapsed_us) + "}";
-        dispatch_async(queue_, ^{
-            log_.AddLine(line);
-        });
+        Emit(line);
     }
 
     void Flush() {
         if (!queue_) {
             return;
         }
+
+        // Drain every thread's pending bytes, then flush the logger. Holding
+        // registry_mutex_ for the whole drain prevents a thread from exiting and
+        // freeing its ThreadLog mid-iteration (thread-exit takes the same lock).
+        auto batches = std::make_shared<std::vector<std::string>>();
+        {
+            std::lock_guard<std::mutex> guard(registry_mutex_);
+            for (auto &thread_log : thread_logs_) {
+                os_unfair_lock_lock(&thread_log->lock);
+                if (!thread_log->pending.empty()) {
+                    batches->emplace_back(std::move(thread_log->pending));
+                    thread_log->pending.clear();
+                    thread_log->pending.reserve(kBatchReserveBytes);
+                }
+                os_unfair_lock_unlock(&thread_log->lock);
+            }
+        }
+
         dispatch_sync(queue_, ^{
+            for (const std::string &batch : *batches) {
+                log_.AddBlock(batch);
+            }
             log_.Flush();
         });
     }
@@ -396,10 +456,85 @@ public:
         Flush();
     }
 
+    // Drains and deregisters the calling thread's buffer at thread exit. Called
+    // from the pthread-key destructor via gActiveTrace.
+    void DrainThreadOnExit(ThreadLog *thread_log) {
+        if (!thread_log) {
+            return;
+        }
+
+        std::string batch;
+        {
+            std::lock_guard<std::mutex> guard(registry_mutex_);
+            os_unfair_lock_lock(&thread_log->lock);
+            batch.swap(thread_log->pending);
+            os_unfair_lock_unlock(&thread_log->lock);
+            for (auto it = thread_logs_.begin(); it != thread_logs_.end(); ++it) {
+                if (it->get() == thread_log) {
+                    thread_logs_.erase(it);  // destroys *thread_log
+                    break;
+                }
+            }
+        }
+
+        if (!batch.empty() && queue_) {
+            auto shipped = std::make_shared<std::string>(std::move(batch));
+            dispatch_async(queue_, ^{
+                log_.AddBlock(*shipped);
+            });
+        }
+    }
+
 private:
     uint64_t CurrentTimeNs() const {
         const uint64_t now = mach_absolute_time();
         return now * timeinfo_.numer / timeinfo_.denom;
+    }
+
+    ThreadLog *AcquireThreadLog() {
+        pthread_once(&gThreadLogKeyOnce, appletrace_make_thread_log_key);
+        ThreadLog *thread_log = static_cast<ThreadLog *>(pthread_getspecific(gThreadLogKey));
+        if (thread_log) {
+            return thread_log;
+        }
+
+        auto owned = std::make_unique<ThreadLog>();
+        owned->pending.reserve(kBatchReserveBytes);
+        thread_log = owned.get();
+        {
+            std::lock_guard<std::mutex> guard(registry_mutex_);
+            thread_logs_.push_back(std::move(owned));
+        }
+        pthread_setspecific(gThreadLogKey, thread_log);
+        return thread_log;
+    }
+
+    // Hot path: append to this thread's buffer with no allocation, shipping a
+    // whole batch to the writer queue only when it crosses the threshold.
+    void Emit(const std::string &line) {
+        if (!IsEnabled() || !queue_) {
+            return;
+        }
+
+        ThreadLog *thread_log = AcquireThreadLog();
+        std::string batch;
+        {
+            os_unfair_lock_lock(&thread_log->lock);
+            thread_log->pending.append(line);
+            thread_log->pending.push_back('\n');
+            if (thread_log->pending.size() >= kBatchFlushThresholdBytes) {
+                batch.swap(thread_log->pending);
+                thread_log->pending.reserve(kBatchReserveBytes);
+            }
+            os_unfair_lock_unlock(&thread_log->lock);
+        }
+
+        if (!batch.empty()) {
+            auto shipped = std::make_shared<std::string>(std::move(batch));
+            dispatch_async(queue_, ^{
+                log_.AddBlock(*shipped);
+            });
+        }
     }
 
     uint64_t ResolveThreadId() {
@@ -437,9 +572,7 @@ private:
             "{\"name\":\"thread_name\",\"ph\":\"M\",\"pid\":" + std::to_string(pid_) +
             ",\"tid\":" + std::to_string(reported_thread_id) + ",\"args\":{\"name\":\"" +
             EscapeJSONString(thread_name.c_str()) + "\"}}";
-        dispatch_async(queue_, ^{
-            log_.AddLine(line);
-        });
+        Emit(line);
     }
 
     std::string BuildEventLine(const char *name, const char *phase, uint64_t thread_id, uint64_t elapsed_us) const {
@@ -465,7 +598,15 @@ private:
     pid_t pid_ = 0;
     std::atomic<uint64_t> main_thread_id_{0};
     std::atomic<bool> enabled_{true};
+    std::mutex registry_mutex_;
+    std::vector<std::unique_ptr<ThreadLog>> thread_logs_;
 };
+
+static void appletrace_thread_log_destructor(void *pointer) {
+    if (gActiveTrace && pointer) {
+        gActiveTrace->DrainThreadOnExit(static_cast<ThreadLog *>(pointer));
+    }
+}
 
 class TraceManager {
 public:

@@ -101,9 +101,10 @@ should lean into that rather than chasing Frida's full feature set.
 ### Phase 2 — Hot-path performance
 - ✅ Introduce `(Class, SEL)` name interning.
 - ✅ Use a zero-allocation per-thread call stack (no per-message `malloc`).
-- Move event recording to per-thread batched buffers with bulk background
-  flushing — design spec in
-  [docs/perf-batching-design.md](docs/perf-batching-design.md).
+- 🛠️ Move event recording to per-thread batched buffers with bulk background
+  flushing — implemented per
+  [docs/perf-batching-design.md](docs/perf-batching-design.md); **pending macOS
+  build + profiling verification.**
 - Defer JSON formatting to the exporter; emit binary events at runtime
   (follow-on stage of the batching design).
 

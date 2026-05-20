@@ -1,7 +1,8 @@
 # Design: Per-Thread Batched Trace Writing
 
-Status: proposed (Phase 2 of [ROADMAP.md](../ROADMAP.md)). This is an
-implementation spec to be built and profiled on macOS; no code here.
+Status: implemented in `appletrace/appletrace/src/appletrace.mm` (Phase 2 of
+[ROADMAP.md](../ROADMAP.md)); **pending macOS build + profiling verification.**
+This document is the design of record; section 9 is the verification plan.
 
 ## 1. Problem
 
