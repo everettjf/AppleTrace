@@ -93,6 +93,32 @@ class BinaryDecodeTests(unittest.TestCase):
             list(decode(data))
 
 
+class BinaryCrossFragmentTests(unittest.TestCase):
+    def test_shared_names_decode_id_defined_in_earlier_fragment(self) -> None:
+        # Fragment 0 defines "loop" (id 0) and uses it; fragment 1 reuses id 0
+        # without re-defining it (a thread emits a string def only once).
+        first = build(pid=1)
+        first.section("B", "loop", tid=0, ts=1)
+        second_id = first._intern("loop")  # already defined -> id 0
+
+        second = bytearray(MAGIC)
+        second += struct.pack("<I", 1)  # pid header
+        second += bytes([ord("E")]) + struct.pack("<IQQQ", second_id, 0, 5, 0)
+
+        shared: dict = {}
+        events = list(decode(first.to_bytes(), names=shared))
+        events += list(decode(bytes(second), names=shared))
+        self.assertEqual([e["ph"] for e in events], ["B", "E"])
+        self.assertTrue(all(e["name"] == "loop" for e in events))
+
+    def test_separate_names_dict_cannot_resolve_later_fragment(self) -> None:
+        second = bytearray(MAGIC)
+        second += struct.pack("<I", 1)
+        second += bytes([ord("E")]) + struct.pack("<IQQQ", 0, 0, 5, 0)
+        with self.assertRaises(ValueError):
+            list(decode(bytes(second)))  # id 0 never defined in this fragment
+
+
 class BinaryMergeTests(unittest.TestCase):
     def test_merge_decodes_binary_fragment(self) -> None:
         enc = build(pid=1)

@@ -106,10 +106,10 @@ should lean into that rather than chasing Frida's full feature set.
   [docs/perf-batching-design.md](docs/perf-batching-design.md); **pending macOS
   build + profiling verification.**
 - 🛠️ Defer JSON formatting to the exporter; emit binary events at runtime.
-  Format locked and the exporter/decoder is implemented + tested
-  (`appletrace_binary.py`, wired into `merge.py`); see
-  [docs/binary-fragment-format.md](docs/binary-fragment-format.md). The native
-  binary writer (opt-in) is the remaining piece.
+  Exporter/decoder implemented + tested (`appletrace_binary.py`, wired into
+  `merge.py`); native writer implemented behind opt-in `APPLETRACE_BINARY=1`
+  (**pending macOS verification**). See
+  [docs/binary-fragment-format.md](docs/binary-fragment-format.md).
 
 ### Phase 3 — Expressiveness & control
 - ✅ Add `APTInstant`, `APTCounter`, and `APTAsyncBegin`/`APTAsyncEnd` event APIs.

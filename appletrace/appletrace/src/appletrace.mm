@@ -6,9 +6,12 @@
 #import "appletrace.h"
 
 #include <atomic>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -112,6 +115,23 @@ std::string EscapeJSONString(const char *input) {
 
 namespace appletrace {
 
+// Binary fragment format (see docs/binary-fragment-format.md). Apple targets are
+// little-endian, so native integers are appended as-is.
+constexpr char kBinaryMagic[8] = {'A', 'P', 'L', 'T', 'R', 'C', '0', '1'};
+constexpr uint8_t kBinaryTagString = 0x01;
+
+static inline void AppendByte(std::string &buffer, uint8_t value) {
+    buffer.push_back(static_cast<char>(value));
+}
+
+static inline void AppendU32(std::string &buffer, uint32_t value) {
+    buffer.append(reinterpret_cast<const char *>(&value), sizeof(value));
+}
+
+static inline void AppendU64(std::string &buffer, uint64_t value) {
+    buffer.append(reinterpret_cast<const char *>(&value), sizeof(value));
+}
+
 class Logger {
 public:
     explicit Logger(size_t block_size) : block_size_(block_size) {}
@@ -190,6 +210,20 @@ public:
         return true;
     }
 
+    // Appends raw bytes verbatim (no newline). Used by the binary fragment path.
+    bool AddRaw(const std::string &bytes) {
+        if (!file_cur_) {
+            return false;
+        }
+        if (cur_size_ + bytes.size() > block_size_) {
+            return false;
+        }
+        memcpy(file_cur_, bytes.data(), bytes.size());
+        file_cur_ += bytes.size();
+        cur_size_ += bytes.size();
+        return true;
+    }
+
 private:
     size_t block_size_;
     int fd_ = -1;
@@ -202,12 +236,20 @@ class LoggerManager {
 public:
     LoggerManager() : log_(BlockSizeFromEnvironment()) {}
 
+    void EnableBinary(uint32_t pid) {
+        binary_ = true;
+        header_pid_ = pid;
+    }
+
     bool Open() {
         std::string path = GetFilePath();
         if (!log_.Open(path.c_str())) {
             return false;
         }
         ++file_counter_;
+        if (binary_) {
+            WriteBinaryHeader();
+        }
         return true;
     }
 
@@ -230,10 +272,16 @@ public:
         }
     }
 
-    // Writes a batch of newline-separated event lines. Splitting on '\n' and
-    // reusing AddLine keeps fragment rollover on line boundaries, so a JSON
-    // object is never split across two fragment files.
+    // Writes a batch of events. In text mode it splits on '\n' and reuses
+    // AddLine so fragment rollover stays on line boundaries; in binary mode it
+    // writes the batch verbatim, rolling over whole-batch so a record is never
+    // split across fragments (batches always end on a record boundary).
     void AddBlock(const std::string &block) {
+        if (binary_) {
+            AddRawBlock(block);
+            return;
+        }
+
         size_t start = 0;
         const size_t size = block.size();
         while (start < size) {
@@ -255,6 +303,29 @@ public:
     }
 
 private:
+    void WriteBinaryHeader() {
+        std::string header(kBinaryMagic, sizeof(kBinaryMagic));
+        AppendU32(header, header_pid_);
+        log_.AddRaw(header);
+    }
+
+    void AddRawBlock(const std::string &block) {
+        if (block.empty()) {
+            return;
+        }
+        if (log_.AddRaw(block)) {
+            return;
+        }
+
+        NSLog(@"AppleTrace: rolling trace fragment");
+        if (!Open()) {
+            return;
+        }
+        if (!log_.AddRaw(block)) {
+            NSLog(@"AppleTrace: failed to write binary batch after rollover");
+        }
+    }
+
     static void InitializeWorkDirectory() {
         static dispatch_once_t once_token;
         dispatch_once(&once_token, ^{
@@ -291,9 +362,10 @@ private:
         InitializeWorkDirectory();
 
         int file_index = file_counter_.load();
+        NSString *extension = binary_ ? @"appletracebin" : @"appletrace";
         NSString *log_name = file_index == 0
-                                 ? @"trace.appletrace"
-                                 : [NSString stringWithFormat:@"trace_%d.appletrace", file_index];
+                                 ? [NSString stringWithFormat:@"trace.%@", extension]
+                                 : [NSString stringWithFormat:@"trace_%d.%@", file_index, extension];
         NSString *log_path = [work_dir_ stringByAppendingPathComponent:log_name];
         NSLog(@"AppleTrace: log path = %@", log_path);
         return std::string(log_path.UTF8String);
@@ -302,6 +374,8 @@ private:
     static std::atomic<int> file_counter_;
     static NSString *work_dir_;
     Logger log_;
+    bool binary_ = false;
+    uint32_t header_pid_ = 0;
 };
 
 std::atomic<int> LoggerManager::file_counter_{0};
@@ -314,11 +388,16 @@ class Trace;
 struct ThreadLog {
     os_unfair_lock lock = OS_UNFAIR_LOCK_INIT;
     std::string pending;
+    // Binary mode only: this thread's name -> globally-unique id map. Each
+    // thread emits its own string definitions, so a thread only ever references
+    // ids it defined — no cross-thread ordering hazard with batched flushing.
+    std::unordered_map<std::string, uint32_t> name_ids;
 };
 
 static pthread_key_t gThreadLogKey;
 static pthread_once_t gThreadLogKeyOnce = PTHREAD_ONCE_INIT;
 static Trace *gActiveTrace = nullptr;
+static std::atomic<uint32_t> gBinaryNextNameId{0};
 
 static void appletrace_thread_log_destructor(void *pointer);
 
@@ -332,7 +411,13 @@ public:
         static dispatch_once_t once_token;
         dispatch_once(&once_token, ^{
             enabled_.store(BoolFromEnvironment(@"APPLETRACE_ENABLED", true));
+            binary_ = BoolFromEnvironment(@"APPLETRACE_BINARY", false);
+            pid_ = getpid();
             gActiveTrace = this;
+
+            if (binary_) {
+                log_.EnableBinary(static_cast<uint32_t>(pid_));
+            }
             if (!log_.Open()) {
                 return;
             }
@@ -340,12 +425,16 @@ public:
             queue_ = dispatch_queue_create("appletrace.queue", DISPATCH_QUEUE_SERIAL);
             mach_timebase_info(&timeinfo_);
             begin_ = CurrentTimeNs();
-            pid_ = getpid();
 
-            dispatch_sync(queue_, ^{
-                WriteMetadataLocked();
-                log_.Flush();
-            });
+            if (binary_) {
+                EmitMetadata("process_name", 0,
+                             [[NSProcessInfo processInfo] processName].UTF8String);
+            } else {
+                dispatch_sync(queue_, ^{
+                    WriteMetadataLocked();
+                    log_.Flush();
+                });
+            }
         });
 
         return queue_ != nullptr;
@@ -370,6 +459,10 @@ public:
 
         const uint64_t thread_id = ResolveThreadId();
         const uint64_t elapsed_us = (CurrentTimeNs() - begin_) / 1000;
+        if (binary_) {
+            EmitBinaryEvent(phase[0], name, thread_id, elapsed_us, 0);
+            return;
+        }
         std::string line = BuildEventLine(name, phase, thread_id, elapsed_us);
         Emit(line);
     }
@@ -381,6 +474,10 @@ public:
 
         const uint64_t thread_id = ResolveThreadId();
         const uint64_t elapsed_us = (CurrentTimeNs() - begin_) / 1000;
+        if (binary_) {
+            EmitBinaryEvent('i', name, thread_id, elapsed_us, 0);
+            return;
+        }
         std::string line =
             "{\"name\":\"" + EscapeJSONString(name) +
             "\",\"cat\":\"appletrace\",\"ph\":\"i\",\"pid\":" + std::to_string(pid_) +
@@ -396,6 +493,12 @@ public:
 
         const uint64_t thread_id = ResolveThreadId();
         const uint64_t elapsed_us = (CurrentTimeNs() - begin_) / 1000;
+        if (binary_) {
+            uint64_t bits = 0;
+            memcpy(&bits, &value, sizeof(bits));
+            EmitBinaryEvent('C', name, thread_id, elapsed_us, bits);
+            return;
+        }
         char value_buffer[64] = {0};
         snprintf(value_buffer, sizeof(value_buffer), "%g", value);
         std::string line =
@@ -415,6 +518,10 @@ public:
 
         const uint64_t thread_id = ResolveThreadId();
         const uint64_t elapsed_us = (CurrentTimeNs() - begin_) / 1000;
+        if (binary_) {
+            EmitBinaryEvent(phase[0], name, thread_id, elapsed_us, async_id);
+            return;
+        }
         std::string line =
             "{\"name\":\"" + EscapeJSONString(name) +
             "\",\"cat\":\"appletrace\",\"ph\":\"" + phase + "\",\"id\":" + std::to_string(async_id) +
@@ -530,12 +637,82 @@ private:
             os_unfair_lock_unlock(&thread_log->lock);
         }
 
-        if (!batch.empty()) {
-            auto shipped = std::make_shared<std::string>(std::move(batch));
-            dispatch_async(queue_, ^{
-                log_.AddBlock(*shipped);
-            });
+        ShipBatch(batch);
+    }
+
+    void ShipBatch(std::string &batch) {
+        if (batch.empty() || !queue_) {
+            return;
         }
+        auto shipped = std::make_shared<std::string>(std::move(batch));
+        dispatch_async(queue_, ^{
+            log_.AddBlock(*shipped);
+        });
+    }
+
+    // Returns this thread's id for `name`, emitting a string-definition record
+    // into the thread buffer the first time the thread uses it. Caller holds the
+    // thread buffer's lock.
+    uint32_t BinaryNameIdLocked(ThreadLog *thread_log, const char *name) {
+        std::string key(name ? name : "");
+        auto found = thread_log->name_ids.find(key);
+        if (found != thread_log->name_ids.end()) {
+            return found->second;
+        }
+        uint32_t name_id = gBinaryNextNameId.fetch_add(1, std::memory_order_relaxed);
+        thread_log->name_ids.emplace(key, name_id);
+        AppendByte(thread_log->pending, kBinaryTagString);
+        AppendU32(thread_log->pending, name_id);
+        AppendU32(thread_log->pending, static_cast<uint32_t>(key.size()));
+        thread_log->pending.append(key);
+        return name_id;
+    }
+
+    void EmitBinaryEvent(char phase, const char *name, uint64_t tid, uint64_t ts, uint64_t arg) {
+        if (!IsEnabled() || !queue_) {
+            return;
+        }
+        ThreadLog *thread_log = AcquireThreadLog();
+        std::string batch;
+        {
+            os_unfair_lock_lock(&thread_log->lock);
+            uint32_t name_id = BinaryNameIdLocked(thread_log, name);
+            AppendByte(thread_log->pending, static_cast<uint8_t>(phase));
+            AppendU32(thread_log->pending, name_id);
+            AppendU64(thread_log->pending, tid);
+            AppendU64(thread_log->pending, ts);
+            AppendU64(thread_log->pending, arg);
+            if (thread_log->pending.size() >= kBatchFlushThresholdBytes) {
+                batch.swap(thread_log->pending);
+                thread_log->pending.reserve(kBatchReserveBytes);
+            }
+            os_unfair_lock_unlock(&thread_log->lock);
+        }
+        ShipBatch(batch);
+    }
+
+    void EmitMetadata(const char *name, uint64_t tid, const char *value) {
+        if (!IsEnabled() || !queue_ || !value) {
+            return;
+        }
+        ThreadLog *thread_log = AcquireThreadLog();
+        std::string batch;
+        {
+            os_unfair_lock_lock(&thread_log->lock);
+            uint32_t name_id = BinaryNameIdLocked(thread_log, name);
+            uint32_t value_id = BinaryNameIdLocked(thread_log, value);
+            AppendByte(thread_log->pending, static_cast<uint8_t>('M'));
+            AppendU32(thread_log->pending, name_id);
+            AppendU64(thread_log->pending, tid);
+            AppendU64(thread_log->pending, 0);
+            AppendU64(thread_log->pending, value_id);
+            if (thread_log->pending.size() >= kBatchFlushThresholdBytes) {
+                batch.swap(thread_log->pending);
+                thread_log->pending.reserve(kBatchReserveBytes);
+            }
+            os_unfair_lock_unlock(&thread_log->lock);
+        }
+        ShipBatch(batch);
     }
 
     uint64_t ResolveThreadId() {
@@ -569,6 +746,11 @@ private:
             }
         }
 
+        if (binary_) {
+            EmitMetadata("thread_name", reported_thread_id, thread_name.c_str());
+            return;
+        }
+
         std::string line =
             "{\"name\":\"thread_name\",\"ph\":\"M\",\"pid\":" + std::to_string(pid_) +
             ",\"tid\":" + std::to_string(reported_thread_id) + ",\"args\":{\"name\":\"" +
@@ -599,6 +781,7 @@ private:
     pid_t pid_ = 0;
     std::atomic<uint64_t> main_thread_id_{0};
     std::atomic<bool> enabled_{true};
+    bool binary_ = false;
     std::mutex registry_mutex_;
     std::vector<std::unique_ptr<ThreadLog>> thread_logs_;
 };

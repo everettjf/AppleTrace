@@ -1,9 +1,10 @@
 # AppleTrace Binary Fragment Format
 
 Status: format locked; **exporter implemented and tested**
-(`appletrace_binary.py`, wired into `merge.py`). The native runtime writer is
-the next step — see "Runtime producer" below. This is the follow-on to the
-per-thread batching work in [perf-batching-design.md](perf-batching-design.md).
+(`appletrace_binary.py`, wired into `merge.py`); **native writer implemented**
+(opt-in `APPLETRACE_BINARY=1`, **pending macOS verification**). This is the
+follow-on to the per-thread batching work in
+[perf-batching-design.md](perf-batching-design.md).
 
 ## Why
 
@@ -65,17 +66,25 @@ float (e.g. `142.5`), matching the text producer.
   `trace[_N].appletracebin` (binary) fragments, detects each file by magic, and
   decodes accordingly. Both feed the same `X`-complete-event collapsing.
 
-## Runtime producer (next step)
+## Runtime producer (implemented)
 
-The native writer (`appletrace.mm`) would, behind an opt-in
-`APPLETRACE_BINARY=1` flag:
+The native writer in `appletrace.mm` is enabled by `APPLETRACE_BINARY=1`:
 
-- Append fixed-layout records to the per-thread batch buffer (already byte
-  buffers after the batching change) instead of JSON text.
-- Maintain a process-wide `(string -> name_id)` interning table; emit a string
-  definition the first time an id is used. The `objc_msgSend` hook already
-  interns `(Class, SEL)` names, so the two tables can share.
-- Name fragments `trace[_N].appletracebin` so the exporter auto-detects them.
+- Appends fixed-layout records to the per-thread batch buffer (byte buffers
+  after the batching change) instead of JSON text.
+- Interning is **per thread**: each thread keeps its own `(string -> name_id)`
+  map and emits a string definition the first time it uses a name, drawing a
+  globally-unique id from an atomic counter. So a thread only ever references
+  ids it defined — there is no cross-thread ordering hazard with batched
+  flushing (a process-wide table with single definitions would be unsafe, since
+  another thread could flush a reference before the defining thread flushes the
+  definition). The same string may therefore get one id per thread.
+- The exporter shares one name table across a run's fragments, so a reference in
+  a later fragment resolves a definition emitted in an earlier one (after
+  rollover a thread does not re-emit a definition).
+- Fragments are named `trace[_N].appletracebin`; each begins with the
+  magic+pid header. `LoggerManager` writes the header on every fragment and
+  rolls over whole batches so a record is never split across files.
 
 Keeping it opt-in preserves the text path (and the existing smoke-test
 assertions) until the binary path is validated on device.

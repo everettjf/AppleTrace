@@ -97,22 +97,25 @@ class Encoder:
         return bytes(self._buffer)
 
 
-def decode(data: bytes, *, pid: int | None = None) -> Iterator[dict]:
+def decode(data: bytes, *, names: Dict[int, str] | None = None) -> Iterator[dict]:
     """Yield Chrome/Perfetto JSON event dicts from a binary fragment.
 
     Decoding stops at a 0x00 tag or when the buffer is exhausted/truncated, so
     zero padding left by a crashed process is tolerated like the text path.
+
+    Pass a shared ``names`` dict across the fragments of one run: a thread emits
+    a name's string definition only once, so after fragment rollover a later
+    fragment may reference an id defined in an earlier one.
     """
     if not is_binary_fragment(data):
         raise ValueError("not an AppleTrace binary fragment")
 
     offset = len(MAGIC)
-    (header_pid,) = _HEADER.unpack_from(data, offset)
+    (pid,) = _HEADER.unpack_from(data, offset)
     offset += _HEADER.size
-    if pid is None:
-        pid = header_pid
 
-    names: Dict[int, str] = {}
+    if names is None:
+        names = {}
     size = len(data)
 
     while offset < size:

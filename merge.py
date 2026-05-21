@@ -34,11 +34,12 @@ def list_trace_files(directory: Path) -> List[Path]:
 
 def iter_events(trace_files: Iterable[Path]) -> Iterable[dict]:
     """Yield events from AppleTrace fragments (text JSON-lines or binary)."""
+    binary_names: dict = {}  # shared across this run's binary fragments
     for file_path in trace_files:
         print(file_path)
         data = file_path.read_bytes()
         if is_binary_fragment(data):
-            yield from decode_binary_fragment(data)
+            yield from decode_binary_fragment(data, names=binary_names)
         else:
             yield from _iter_text_events(file_path, data)
 
