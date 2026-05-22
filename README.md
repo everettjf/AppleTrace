@@ -15,9 +15,10 @@
 
 </div>
 
-> 🚀 **Actively developed.** AppleTrace captures your app's execution timeline —
+> 🚀 **Maintained as needed.** AppleTrace captures your app's execution timeline —
 > manual sections and/or every `objc_msgSend` — and renders it in Perfetto, right
-> in the browser. See [ROADMAP.md](ROADMAP.md) for what's planned next.
+> in the browser. With the arrival of the AI era, there is even more that can be
+> explored and improved when the need arises.
 
 ![AppleTrace Demo](https://everettjf.github.io/stuff/appletrace/appletrace.gif)
 
@@ -387,8 +388,9 @@ AppleTrace/
 ## ❓ FAQ
 
 **Is AppleTrace still maintained?**
-Yes — actively developed. Recent work focuses on hot-path performance, richer
-trace events, and modern Perfetto-based visualization. See [ROADMAP.md](ROADMAP.md).
+Yes — maintained as needed. AppleTrace is no longer under active day-to-day
+development, but the arrival of the AI era opens up more possibilities for
+future improvements and targeted maintenance when useful.
 
 **Does AppleTrace work on recent iOS versions?**
 Manual instrumentation works on all iOS versions. The automatic hook mode targets

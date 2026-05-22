@@ -15,9 +15,9 @@
 
 </div>
 
-> 🚀 **持续开发中。** AppleTrace 捕获 App 的执行时间线——手动 section 和/或每一次
-> `objc_msgSend`——并在浏览器里用 Perfetto 直接呈现。下一步规划见
-> [ROADMAP.md](ROADMAP.md)。
+> 🚀 **按需维护。** AppleTrace 捕获 App 的执行时间线——手动 section 和/或每一次
+> `objc_msgSend`——并在浏览器里用 Perfetto 直接呈现。随着 AI 时代的到来，可做的事情
+> 更多了，后续会根据实际需要继续维护和改进。
 
 ![AppleTrace Demo](https://everettjf.github.io/stuff/appletrace/appletrace.gif)
 
@@ -375,8 +375,8 @@ AppleTrace/
 ## ❓ FAQ
 
 **AppleTrace 还在维护吗？**
-是的——持续开发中。近期工作聚焦于热路径性能、更丰富的 trace 事件，以及基于 Perfetto
-的现代可视化。详见 [ROADMAP.md](ROADMAP.md)。
+是的——按需维护。AppleTrace 现在不再是持续活跃开发状态，但随着 AI 时代的到来，可做的
+事情更多了，后续会根据实际需要继续维护和改进。
 
 **支持较新的 iOS 版本吗？**
 手动埋点适用于所有 iOS 版本。自动 hook 模式仅面向 arm64（arm64e 不在范围内——见
