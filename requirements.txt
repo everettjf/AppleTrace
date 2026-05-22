@@ -1,2 +1,3 @@
 # Optional Python tooling for local development and testing.
-pytest>=8.0,<9.0
+# >=9.0.3 picks up the fix for CVE-2025-71176 (insecure /tmp/pytest-of-* handling).
+pytest>=9.0.3
