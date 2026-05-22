@@ -1,20 +1,28 @@
 # AppleTrace 中文说明
 
-AppleTrace 是一个面向 iOS 的方法追踪与调用链分析工具，可以把运行时事件导出成 Chrome Trace 格式进行可视化分析。
+AppleTrace 是一个面向 iOS/macOS 的方法追踪与调用链分析工具，可以把运行时事件导出成 trace 文件，直接在 [Perfetto](https://ui.perfetto.dev) 中可视化分析。
 
-## 2026 现代化改进
+> 🚀 AppleTrace 正在持续开发中：轻量、可内嵌、产物可直接拖入 Perfetto 分享。
+> 下一步规划见 [ROADMAP.md](ROADMAP.md)。
 
-- Python 工具链已升级到 Python 3。
-- 新增统一命令行入口：`scripts/appletrace_cli.py`。
-- 新增自动化测试：`python3 -m pytest tests`。
-- 新增运行时控制 API：`APTFlush`、`APTSetEnabled`、`APTIsEnabled`、`APTGetTraceDirectory`。
-- 支持通过环境变量配置 trace 输出目录和 mmap 块大小。
+## 最新改进
+
+- **更快的 `objc_msgSend` hook**：对 `(Class, SEL)` 做名字 interning，配合每线程零分配调用栈，热路径不再每次 `malloc`/`snprintf`。
+- **每线程批量写入**：事件先在每线程缓冲累积、批量落盘，热路径不再每事件一次 `dispatch_async`。
+- **线程命名**：trace 现在会标注线程名，Perfetto 中不再只显示裸 id。
+- **更多事件类型**：除 begin/end section 外，新增 `APTInstant`（瞬时标记）、`APTCounter`（内存、FPS 等数值曲线），以及 `APTAsyncBegin`/`APTAsyncEnd`（跨线程/队列的异步事件）。
+- **运行时过滤**：通过类名前缀 allow/deny 列表限制自动 trace 的范围
+  （`APPLETRACE_TRACE_CLASS_ALLOW` / `APPLETRACE_TRACE_CLASS_DENY`）。
+- **全面 Perfetto 可视化**：把 `trace.json` 拖入 [ui.perfetto.dev](https://ui.perfetto.dev) 即可，纯网页、无需安装；begin/end 默认折叠为 `X` complete 事件。
+- Python 3 工具链、统一 CLI（`scripts/appletrace_cli.py`）、自动化测试、CI，以及面向大 trace 的流式合并。
+- 运行时控制 API：`APTFlush`、`APTSetEnabled`、`APTIsEnabled`、`APTGetTraceDirectory`，并支持通过环境变量配置输出目录与 mmap 块大小。
 
 ## 当前 hook 状态
 
-- 稳定主线：手动 section 与延迟安装的 `objc_msgSend` direct hook 已有 simulator smoke test 覆盖。
-- 实验支线：sample 自身的嵌套 Objective-C 方法调用、`objc_msgSendSuper2`、跨线程 trace、一个 10 参数 Objective-C 调用、浮点参数/返回值，以及小型聚合返回值现在也有自动化覆盖。
-- 发布建议：把 direct hook 视为 arm64 预览能力，生产上仍可继续把手动埋点作为最低风险基线。
+- **目标平台**：仅 arm64。
+- **手动 section** 是最低风险基线，适用于所有 iOS/macOS 版本。
+- **`objc_msgSend` / `objc_msgSendSuper2` direct hook**（arm64）已有 simulator smoke test 覆盖：嵌套调用、`super` 派发、跨线程事件、10 参数调用，以及浮点/小型聚合返回值等 ABI 场景。
+- **不支持 arm64e**：arm64e 通过认证 GOT（`__DATA_CONST.__auth_got`）调用 `objc_msgSend`，重绑定需要正确的指针认证（PAC）重签名。为避免发布未经验证的 hook，hook 源码在 arm64e 下会直接编译报错——请构建纯 arm64 slice。
 
 ## 快速开始
 
@@ -22,17 +30,24 @@ AppleTrace 是一个面向 iOS 的方法追踪与调用链分析工具，可以�
 brew install python ldid git
 git clone https://github.com/everettjf/AppleTrace.git
 cd AppleTrace
-sh get_catapult.sh
 python3 -m pip install -r requirements.txt
 ```
 
-### 合并与导出
+### 合并与可视化
 
 ```bash
+# 合并 trace 片段为 trace.json（默认输出 X complete 事件）
 python3 merge.py -d /path/to/appletracedata
-python3 scripts/appletrace_cli.py all /path/to/appletracedata --open
+
+# 如需保留原始 begin/end 事件
+python3 merge.py -d /path/to/appletracedata --raw
+
+# 合并并直接打开 Perfetto
+python3 scripts/appletrace_cli.py open /path/to/appletracedata
 sh go.sh /path/to/appletracedata
 ```
+
+随后把生成的 `trace.json` 拖入 [ui.perfetto.dev](https://ui.perfetto.dev) 查看。
 
 ### 手动埋点
 
@@ -56,6 +71,21 @@ void runTask() {
 }
 ```
 
+### 瞬时标记、计数器与异步事件
+
+```objc
+APTInstant("cache_miss");          // 在当前线程时间线上打一个点
+APTCounter("resident_mb", 142.5);  // 随时间绘制数值曲线
+APTCounter("fps", 60);
+
+// 跨线程/队列的异步事件（通过 name + id 配对）
+uint64_t requestID = 42;
+APTAsyncBegin("image_load", requestID);
+dispatch_async(queue, ^{
+    APTAsyncEnd("image_load", requestID);
+});
+```
+
 ### 运行时控制
 
 ```objc
@@ -72,21 +102,36 @@ export APPLETRACE_ENABLED=1
 export APPLETRACE_DATA_DIR="$HOME/tmp/appletracedata"
 export APPLETRACE_BLOCK_SIZE_MB=32
 export APPLETRACE_KEEP_EXISTING=1
+
+# arm64 自动 objc_msgSend hook
+export APPLETRACE_AUTO_HOOK_OBJC_MSGSEND=1
+# 仅 trace 这些类名前缀（逗号分隔）
+export APPLETRACE_TRACE_CLASS_ALLOW="MyApp,UI"
+# 永不 trace 这些类名前缀（优先级高于 allow）
+export APPLETRACE_TRACE_CLASS_DENY="NSKVO,_"
 ```
 
 ## 测试
 
 ```bash
+# Python 工具链
 python3 -m pytest tests
+
+# objc_msgSend hook smoke test（在模拟器上构建并运行）
 ./scripts/test_objc_msgsend_hook.sh
 ./scripts/test_objc_msgsend_hook_experimental.sh
+
+# 批量写入并发压测（host 构建）
+./scripts/test_batching_stress.sh
 ```
 
 其中：
 
-- `test_objc_msgsend_hook.sh` 是当前可发布的稳定验证链路。
-- `test_objc_msgsend_hook_experimental.sh` 会验证 sample 方法级 trace、`super` 调用、跨线程事件、section 闭合情况、栈上传参的 Objective-C 调用、浮点参数和返回值，以及小型聚合返回值。
+- `test_objc_msgsend_hook.sh` 是稳定验证链路；`test_objc_msgsend_hook_experimental.sh` 额外验证方法级 trace、`super` 调用、跨线程事件、section 闭合、栈上传参、浮点参数/返回值与小型聚合返回值。
+- `test_batching_stress.sh` 多线程压测每线程批量写入器，断言事件不丢不重。
 
 ## 说明
 
-仓库 README 已明确标注该项目处于 maintenance mode。当前这轮改造的目标不是重写架构，而是把工程基础、可验证性和使用体验拉到更现代的水平。
+AppleTrace 的定位是「轻量、可内嵌、产物可分享」的方法级 tracer。这一轮改造在保持
+该定位的前提下，重点提升了热路径性能、事件表达能力（instant/counter/线程名）以及
+基于 Perfetto 的现代可视化体验。后续规划详见 [ROADMAP.md](ROADMAP.md)，欢迎贡献。
