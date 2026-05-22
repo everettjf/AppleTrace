@@ -27,8 +27,8 @@
 
 - [What is AppleTrace?](#-what-is-appletrace)
 - [Key Features](#-key-features)
-- [How It Works](#-how-it-works)
 - [Quick Start](#-quick-start)
+- [How It Works](#-how-it-works)
 - [Installation](#-installation)
 - [Usage](#-usage)
 - [Processing & Visualizing Traces](#-processing--visualizing-traces)
@@ -89,29 +89,6 @@ to explore the call timeline, durations, threads, and counters.
 
 ---
 
-## 🔧 How It Works
-
-```
-   Your app (instrumented)                Host tooling                 Browser
-┌───────────────────────────┐      ┌──────────────────────┐      ┌────────────────┐
-│ APTBeginSection / APTEnd…  │      │  merge.py /           │      │                │
-│ APTInstant / APTCounter    │ ───► │  appletrace_cli.py    │ ───► │ ui.perfetto.dev│
-│ APTAsyncBegin / …          │      │                       │      │                │
-│ objc_msgSend auto-hook     │      │  fragments → trace.json│      │  drag & drop   │
-└───────────────────────────┘      └──────────────────────┘      └────────────────┘
-   per-thread batched writes              X-complete collapse
-   → <sandbox>/Library/appletracedata     → single JSON array
-```
-
-1. **Instrument** — add manual markers, or install the `objc_msgSend` hook.
-2. **Capture** — events accumulate in per-thread buffers and flush in bulk to
-   trace fragments under `<app sandbox>/Library/appletracedata`.
-3. **Merge** — pull the folder and run `merge.py`; begin/end pairs collapse into
-   Perfetto `X` complete events.
-4. **Visualize** — drag `trace.json` into Perfetto.
-
----
-
 ## ⚡ Quick Start
 
 ```bash
@@ -163,6 +140,29 @@ sh go.sh /path/to/appletracedata
 
 Open [ui.perfetto.dev](https://ui.perfetto.dev) and drag in `trace.json` (or use
 **Open trace file**).
+
+---
+
+## 🔧 How It Works
+
+```
+   Your app (instrumented)                Host tooling                 Browser
+┌───────────────────────────┐      ┌──────────────────────┐      ┌────────────────┐
+│ APTBeginSection / APTEnd…  │      │  merge.py /           │      │                │
+│ APTInstant / APTCounter    │ ───► │  appletrace_cli.py    │ ───► │ ui.perfetto.dev│
+│ APTAsyncBegin / …          │      │                       │      │                │
+│ objc_msgSend auto-hook     │      │  fragments → trace.json│      │  drag & drop   │
+└───────────────────────────┘      └──────────────────────┘      └────────────────┘
+   per-thread batched writes              X-complete collapse
+   → <sandbox>/Library/appletracedata     → single JSON array
+```
+
+1. **Instrument** — add manual markers, or install the `objc_msgSend` hook.
+2. **Capture** — events accumulate in per-thread buffers and flush in bulk to
+   trace fragments under `<app sandbox>/Library/appletracedata`.
+3. **Merge** — pull the folder and run `merge.py`; begin/end pairs collapse into
+   Perfetto `X` complete events.
+4. **Visualize** — drag `trace.json` into Perfetto.
 
 ---
 
@@ -438,17 +438,17 @@ and the [Agent Guide](AGENT.md) for repository conventions.
 
 ---
 
-## 📜 License
-
-AppleTrace is released under the MIT License. See [LICENSE](LICENSE) for details.
-
----
-
 ## 🙏 Acknowledgements
 
 Inspired by Facebook's [fbtrace](https://github.com/facebookarchive/fbtrace), and
 built around Google's [Perfetto](https://perfetto.dev) and the
 [Trace Event Format](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview).
+
+---
+
+## 📜 License
+
+AppleTrace is released under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 
@@ -465,10 +465,6 @@ built around Google's [Perfetto](https://perfetto.dev) and the
 <a href="http://everettjf.github.io/2017/09/21/appletrace/">
   <img src="https://img.shields.io/badge/Docs-中文教程-45B7D1?style=for-the-badge&logo=readthedocs" />
 </a>
-
-**中文交流：** 欢迎关注微信订阅号
-
-<img src="image/wechat.png" alt="WeChat" width="150"/>
 
 **Made with ❤️ by [Everett](https://github.com/everettjf)**
 
