@@ -6,7 +6,9 @@
 
 ## 1. Where We Are Today
 
-- **Platform**: arm64 and arm64e only.
+- **Platform**: arm64 only. arm64e is out of scope — the auto-hook would need
+  pointer-authentication-aware GOT rebinding, so the hook source hard-errors if
+  built for arm64e.
 - **Tracing backends**: manual `APTBeginSection`/`APTEndSection` markers (plus
   `APTInstant` / `APTCounter` / `APTAsyncBegin` / `APTAsyncEnd`), plus a direct
   `objc_msgSend` / `objc_msgSendSuper2` rebind
@@ -72,9 +74,8 @@ Recommended redesign:
 ### 2.5 Housekeeping
 
 - ✅ Add the `CONTRIBUTING.md` that the README references.
-- ✅ Scope the project to arm64/arm64e and document it; x86_64 is out of scope.
-- Validate the arm64e auto-hook on device (rebinding through authenticated
-  `__auth_got` entries needs ptrauth re-signing).
+- ✅ Scope the project to arm64 and document it; arm64e and x86_64 are out of
+  scope (the hook source hard-errors on arm64e).
 
 ## 3. Competitive Comparison
 
@@ -117,6 +118,5 @@ should lean into that rather than chasing Frida's full feature set.
 
 ### Phase 4 — Reach & polish
 - ✅ Add `CONTRIBUTING.md`.
-- ✅ Scope to arm64/arm64e.
-- Validate the arm64e auto-hook on device (ptrauth-signed `__auth_got`).
+- ✅ Scope to arm64 (arm64e dropped; hook hard-errors there).
 - Explore an `os_signpost` backend and/or Perfetto protobuf export.

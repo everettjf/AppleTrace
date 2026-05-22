@@ -19,10 +19,10 @@ AppleTrace 是一个面向 iOS/macOS 的方法追踪与调用链分析工具，�
 
 ## 当前 hook 状态
 
-- **目标平台**：arm64 与 arm64e。
+- **目标平台**：仅 arm64。
 - **手动 section** 是最低风险基线，适用于所有 iOS/macOS 版本。
-- **`objc_msgSend` / `objc_msgSendSuper2` direct hook**（arm64/arm64e）已有 simulator smoke test 覆盖：嵌套调用、`super` 派发、跨线程事件、10 参数调用，以及浮点/小型聚合返回值等 ABI 场景。
-- **arm64e 自动 hook** 因指针认证（PAC）仍需真机验证，在 arm64e 上视为预览能力。
+- **`objc_msgSend` / `objc_msgSendSuper2` direct hook**（arm64）已有 simulator smoke test 覆盖：嵌套调用、`super` 派发、跨线程事件、10 参数调用，以及浮点/小型聚合返回值等 ABI 场景。
+- **不支持 arm64e**：arm64e 通过认证 GOT（`__DATA_CONST.__auth_got`）调用 `objc_msgSend`，重绑定需要正确的指针认证（PAC）重签名。为避免发布未经验证的 hook，hook 源码在 arm64e 下会直接编译报错——请构建纯 arm64 slice。
 
 ## 快速开始
 
@@ -103,7 +103,7 @@ export APPLETRACE_DATA_DIR="$HOME/tmp/appletracedata"
 export APPLETRACE_BLOCK_SIZE_MB=32
 export APPLETRACE_KEEP_EXISTING=1
 
-# arm64/arm64e 自动 objc_msgSend hook
+# arm64 自动 objc_msgSend hook
 export APPLETRACE_AUTO_HOOK_OBJC_MSGSEND=1
 # 仅 trace 这些类名前缀（逗号分隔）
 export APPLETRACE_TRACE_CLASS_ALLOW="MyApp,UI"

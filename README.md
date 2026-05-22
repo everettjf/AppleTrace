@@ -59,7 +59,7 @@ to explore the call timeline, durations, threads, and counters.
 ## ✨ Key Features
 
 - 📊 **Automatic method tracing** — direct `objc_msgSend` / `objc_msgSendSuper2`
-  rebinding on arm64/arm64e captures Objective-C activity with no source changes.
+  rebinding on arm64 captures Objective-C activity with no source changes.
 - 🎯 **Manual sections** — `APTBeginSection` / `APTEndSection` (and the
   `APTBegin` / `APTEnd` / `APTScopeSection` helpers) mark exactly the regions you
   care about — the lowest-risk option, works on every OS version.
@@ -138,7 +138,7 @@ python3 -m pip install -r requirements.txt
 }
 ```
 
-### Mode B — Automatic `objc_msgSend` Hook (arm64/arm64e)
+### Mode B — Automatic `objc_msgSend` Hook (arm64)
 
 ```objc
 // From your app, after launch:
@@ -173,7 +173,7 @@ Open [ui.perfetto.dev](https://ui.perfetto.dev) and drag in `trace.json` (or use
 | Requirement | Version | Used for |
 |-------------|---------|----------|
 | **macOS** | 10.15+ | Build environment |
-| **Xcode** | 12+ | iOS/macOS builds (arm64/arm64e) |
+| **Xcode** | 12+ | iOS/macOS builds (arm64) |
 | **Python** | 3.9+ | Trace merging, CLI, and tests |
 | **Perfetto** | Web | Visualization at [ui.perfetto.dev](https://ui.perfetto.dev) |
 | **ldid** | Optional | Re-signing the loader's embedded framework |
@@ -187,11 +187,11 @@ From the repository root:
 # iOS device (arm64)
 xcodebuild -project appletrace/appletrace.xcodeproj -scheme appletrace \
   -configuration Release -sdk iphoneos build
-
-# arm64e (override the project default which scopes to arm64)
-xcodebuild -project appletrace/appletrace.xcodeproj -scheme appletrace \
-  -configuration Release -sdk iphoneos ARCHS=arm64e VALID_ARCHS=arm64e build
 ```
+
+> AppleTrace targets **arm64 only**. arm64e is out of scope: the auto-hook would
+> have to rebind pointer-authenticated GOT entries, so the hook source
+> deliberately fails to compile for arm64e. Build a plain arm64 slice.
 
 Embed the resulting `appletrace.framework` into your target (see
 `sample/ManualSectionDemo` for manual mode and `sample/TraceAllMsgDemo` for the
@@ -278,7 +278,7 @@ export APPLETRACE_DATA_DIR="$HOME/tmp/appletracedata"
 export APPLETRACE_BLOCK_SIZE_MB=32
 export APPLETRACE_KEEP_EXISTING=1
 
-# Automatic objc_msgSend hook (arm64/arm64e)
+# Automatic objc_msgSend hook (arm64)
 export APPLETRACE_AUTO_HOOK_OBJC_MSGSEND=1
 # Only trace classes whose names start with these comma-separated prefixes
 export APPLETRACE_TRACE_CLASS_ALLOW="MyApp,UI"
@@ -319,10 +319,12 @@ Want to try it without building anything? Drag the prebuilt
 
 ## 🧩 Platform & Hook Support
 
-| Mode | arm64 | arm64e |
-|------|:-----:|:------:|
-| Manual sections & explicit events (`APTBeginSection`, `APTInstant`, …) | ✅ | ✅ |
-| Automatic `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ | ⚠️ preview |
+AppleTrace targets **arm64 only**.
+
+| Mode | arm64 |
+|------|:-----:|
+| Manual sections & explicit events (`APTBeginSection`, `APTInstant`, …) | ✅ |
+| Automatic `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ |
 
 - **Manual sections** are the lowest-risk baseline and work on every iOS/macOS
   version.
@@ -330,12 +332,11 @@ Want to try it without building anything? Drag the prebuilt
   stress test — nested sends, `super` dispatch, cross-thread events, a
   10-argument call, and floating-point / small-aggregate ABI cases all survive
   the tracing wrapper.
-- The **arm64e auto-hook** rebinds authenticated GOT entries
-  (`__DATA_CONST.__auth_got`), which requires re-signing pointers with the correct
-  pointer-authentication context. The framework compiles and links as a proper
-  arm64e (ptrauth) binary, but the auto-hook still needs **on-device validation** —
-  treat it as a preview there. Manual sections and explicit event APIs work on
-  arm64e regardless.
+- **arm64e is not supported.** Its callers reach `objc_msgSend` through
+  authenticated GOT entries (`__DATA_CONST.__auth_got`), which would require
+  re-signing rebound pointers with the correct pointer-authentication context.
+  Rather than ship an unvalidated hook, the hook source hard-errors when built
+  for arm64e — build a plain arm64 slice instead.
 
 ---
 
@@ -391,8 +392,8 @@ trace events, and modern Perfetto-based visualization. See [ROADMAP.md](ROADMAP.
 
 **Does AppleTrace work on recent iOS versions?**
 Manual instrumentation works on all iOS versions. The automatic hook mode targets
-arm64/arm64e; the arm64e path needs on-device pointer-authentication validation
-(see [Platform & Hook Support](#-platform--hook-support)).
+arm64 only (arm64e is out of scope — see
+[Platform & Hook Support](#-platform--hook-support)).
 
 **Can I trace third-party apps?**
 Yes — see the loader project and this Chinese guide:
