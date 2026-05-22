@@ -2,8 +2,10 @@
 
 Status: format locked; **exporter implemented and tested**
 (`appletrace_binary.py`, wired into `merge.py`); **native writer implemented**
-(opt-in `APPLETRACE_BINARY=1`, **pending macOS verification**). This is the
-follow-on to the per-thread batching work in
+(opt-in `APPLETRACE_BINARY=1`, **verified on the macOS host stress test** —
+`scripts/test_batching_stress.sh` runs the binary mode through 200k cross-thread
+event pairs with no loss or duplication; arm64e on-device validation still
+recommended). This is the follow-on to the per-thread batching work in
 [perf-batching-design.md](perf-batching-design.md).
 
 ## Why
