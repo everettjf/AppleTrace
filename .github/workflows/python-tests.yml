@@ -36,3 +36,12 @@ jobs:
         run: chmod +x scripts/test_objc_msgsend_hook.sh scripts/test_objc_msgsend_hook_experimental.sh
       - name: Run objc_msgSend experimental test
         run: ./scripts/test_objc_msgsend_hook_experimental.sh
+
+  batching-stress:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make stress script executable
+        run: chmod +x scripts/test_batching_stress.sh
+      - name: Run batched-writer stress test (text + binary)
+        run: ./scripts/test_batching_stress.sh
