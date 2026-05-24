@@ -104,6 +104,31 @@ cd AppleTrace
 python3 -m pip install -r requirements.txt
 ```
 
+### Try the Demo App (fastest way to see a trace)
+
+`sample/ManualSectionDemo` is a self-contained showcase. Open it in Xcode,
+run it on a Simulator (or device), and tap **Generate Trace** — it runs a
+curated, multi-threaded workload (app-startup sections, parallel
+`ImageDecoder` / `NetworkClient` / `DatabaseWriter` threads, async download
+arcs, a 60-frame render loop with live FPS / memory counters) and writes a
+complete trace. The screen then shows the on-disk trace directory and the
+exact commands to merge and open it in Perfetto.
+
+```bash
+open sample/ManualSectionDemo/ManualSectionDemo.xcodeproj   # then Run + tap "Generate Trace"
+
+# The app prints the trace directory; merge it and open Perfetto:
+python3 merge.py -d "<trace directory shown in the app>"     # → trace.json
+# or in one step:
+sh go.sh "<trace directory shown in the app>"
+```
+
+On the Simulator the directory is already on your Mac. On a device, pull the
+app container first (Xcode ▸ *Window ▸ Devices and Simulators ▸ Download
+Container*, or `xcrun devicectl device copy from …`) — the app shows the full
+command. `sample/TraceAllMsgDemo` is the companion sample for the automatic
+`objc_msgSend` hook.
+
 ### Mode A — Manual Instrumentation (recommended baseline)
 
 ```objc

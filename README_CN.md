@@ -99,6 +99,29 @@ cd AppleTrace
 python3 -m pip install -r requirements.txt
 ```
 
+### 体验 Demo App（最快看到一条 trace）
+
+`sample/ManualSectionDemo` 是一个开箱即用的示例。用 Xcode 打开，在模拟器
+（或真机）上运行，点击 **Generate Trace** 按钮——它会跑一段精心设计的多线程
+工作负载（App 启动 section、并行的 `ImageDecoder` / `NetworkClient` /
+`DatabaseWriter` 线程、async 下载弧、带实时 FPS / 内存 counter 的 60 帧渲染
+循环）并写出一条完整的 trace。界面随后会显示磁盘上的 trace 目录，以及合并并在
+Perfetto 中打开它的完整命令。
+
+```bash
+open sample/ManualSectionDemo/ManualSectionDemo.xcodeproj   # 运行后点击 "Generate Trace"
+
+# App 会显示 trace 目录；合并它并打开 Perfetto：
+python3 merge.py -d "<App 中显示的 trace 目录>"               # → trace.json
+# 或一步到位：
+sh go.sh "<App 中显示的 trace 目录>"
+```
+
+模拟器上该目录就在你的 Mac 本地。真机上需先拉取 App 容器（Xcode ▸ *Window ▸
+Devices and Simulators ▸ Download Container*，或 `xcrun devicectl device
+copy from …`）——App 内会显示完整命令。`sample/TraceAllMsgDemo` 则是自动
+`objc_msgSend` hook 的配套示例。
+
 ### 模式 A — 手动埋点（推荐基线）
 
 ```objc
