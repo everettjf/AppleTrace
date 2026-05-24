@@ -126,8 +126,19 @@ sh go.sh "<trace directory shown in the app>"
 On the Simulator the directory is already on your Mac. On a device, pull the
 app container first (Xcode ▸ *Window ▸ Devices and Simulators ▸ Download
 Container*, or `xcrun devicectl device copy from …`) — the app shows the full
-command. `sample/TraceAllMsgDemo` is the companion sample for the automatic
-`objc_msgSend` hook.
+command.
+
+Three samples are included:
+
+| Sample | Language | Shows |
+|--------|----------|-------|
+| `sample/ManualSectionDemo` | Objective-C | Manual `APTBeginSection` sections, counters, async, threads |
+| `sample/AppleTraceSwiftDemo` | Swift | `@Traced` / `@TraceAll` / `withSpan` macros **and** the `AppleTraceAuto` SwiftTrace auto-hook |
+| `sample/TraceAllMsgDemo` | Objective-C | Automatic `objc_msgSend` hook |
+
+The Swift demo consumes the local SwiftPM package, so open it from the repo
+root (`open sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj`) and Xcode
+resolves the `AppleTrace` / `AppleTraceAuto` products automatically.
 
 ### Mode A — Manual Instrumentation (recommended baseline)
 

@@ -119,8 +119,19 @@ sh go.sh "<App 中显示的 trace 目录>"
 
 模拟器上该目录就在你的 Mac 本地。真机上需先拉取 App 容器（Xcode ▸ *Window ▸
 Devices and Simulators ▸ Download Container*，或 `xcrun devicectl device
-copy from …`）——App 内会显示完整命令。`sample/TraceAllMsgDemo` 则是自动
-`objc_msgSend` hook 的配套示例。
+copy from …`）——App 内会显示完整命令。
+
+仓库内含三个示例：
+
+| 示例 | 语言 | 演示内容 |
+|------|------|---------|
+| `sample/ManualSectionDemo` | Objective-C | 手动 `APTBeginSection`、counter、async、多线程 |
+| `sample/AppleTraceSwiftDemo` | Swift | `@Traced` / `@TraceAll` / `withSpan` 宏，**以及** `AppleTraceAuto` 的 SwiftTrace 自动 hook |
+| `sample/TraceAllMsgDemo` | Objective-C | 自动 `objc_msgSend` hook |
+
+Swift demo 依赖本地 SwiftPM 包，从仓库根目录打开
+（`open sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj`），Xcode 会自动
+解析 `AppleTrace` / `AppleTraceAuto` 两个 product。
 
 ### 模式 A — 手动埋点（推荐基线）
 

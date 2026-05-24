@@ -1,0 +1,24 @@
+{
+  "originHash" : "6300281be3efd3fcbe51463ca04762a38199675a4f996552570d2630bb611e2e",
+  "pins" : [
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "0687f71944021d616d34d922343dcef086855920",
+        "version" : "600.0.1"
+      }
+    },
+    {
+      "identity" : "swifttrace",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/johnno1962/SwiftTrace.git",
+      "state" : {
+        "revision" : "589f37149d5b32cbdd44c70809df23b4f4fa0260",
+        "version" : "8.6.1"
+      }
+    }
+  ],
+  "version" : 3
+}

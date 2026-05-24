@@ -21,6 +21,14 @@ Implemented (SwiftPM package at the repo root — `Package.swift`, `Sources/`):
   `AppleTraceAutoExample` target (`swift run AppleTraceAutoExample`); it can't be
   exercised from an XCTest bundle because SwiftTrace's metadata scanning needs a
   normal executable / app image.
+- **Demo app:** `sample/AppleTraceSwiftDemo` (SwiftUI) consumes the local package
+  and exercises both routes in one guided app — tap "Generate Trace" to run a
+  multi-threaded workload (~490 events across 5 named tracks: macro-route spans,
+  the SwiftTrace-hooked `ImageLoader`, counters, async arcs) and see the steps to
+  open it in Perfetto. Verified on the iPhone 17 Simulator and built+signed for
+  device. Note: the bridge subclasses the lightweight `Swizzle` (not `Decorated`)
+  and skips `super` — `Decorated`'s argument-reflection path hung in the iOS
+  app context.
 
 ## 1. Problem
 

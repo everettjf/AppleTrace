@@ -19,14 +19,18 @@ import SwiftTrace
 
 /// A SwiftTrace swizzle that emits an AppleTrace section spanning each traced
 /// method invocation.
-final class AppleTraceSwizzle: SwiftTrace.Decorated {
+///
+/// It subclasses the lightweight `Swizzle` (not `Decorated`) and deliberately
+/// does not call `super`: the trampoline performs the real call and only uses
+/// `onEntry`/`onExit` as observers, so emitting begin/end here is sufficient.
+/// This avoids `Decorated`'s argument-reflection/logging path, which is heavier
+/// and less robust across threads and platforms.
+final class AppleTraceSwizzle: SwiftTrace.Swizzle {
     override func onEntry(stack: inout SwiftTrace.EntryStack, invocation: Invocation) {
         APTBeginSection(signature)
-        super.onEntry(stack: &stack, invocation: invocation)
     }
 
     override func onExit(stack: inout SwiftTrace.ExitStack, invocation: Invocation) {
-        super.onExit(stack: &stack, invocation: invocation)
         APTEndSection(signature)
     }
 }

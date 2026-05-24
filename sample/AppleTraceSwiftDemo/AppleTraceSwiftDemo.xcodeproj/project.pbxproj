@@ -1,0 +1,260 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		D5A7C0DE0000000000000013 /* AppleTraceSwiftDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A7C0DE0000000000000010 /* AppleTraceSwiftDemoApp.swift */; };
+		D5A7C0DE0000000000000014 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A7C0DE0000000000000011 /* ContentView.swift */; };
+		D5A7C0DE0000000000000015 /* Showcase.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A7C0DE0000000000000012 /* Showcase.swift */; };
+		D5A7C0DE0000000000000019 /* AppleTrace in Frameworks */ = {isa = PBXBuildFile; productRef = D5A7C0DE0000000000000017 /* AppleTrace */; };
+		D5A7C0DE000000000000001A /* AppleTraceAuto in Frameworks */ = {isa = PBXBuildFile; productRef = D5A7C0DE0000000000000018 /* AppleTraceAuto */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		D5A7C0DE000000000000000B /* AppleTraceSwiftDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppleTraceSwiftDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D5A7C0DE0000000000000010 /* AppleTraceSwiftDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleTraceSwiftDemoApp.swift; sourceTree = "<group>"; };
+		D5A7C0DE0000000000000011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		D5A7C0DE0000000000000012 /* Showcase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Showcase.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		D5A7C0DE0000000000000009 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D5A7C0DE0000000000000019 /* AppleTrace in Frameworks */,
+				D5A7C0DE000000000000001A /* AppleTraceAuto in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D5A7C0DE0000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				D5A7C0DE0000000000000003 /* AppleTraceSwiftDemo */,
+				D5A7C0DE0000000000000004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D5A7C0DE0000000000000003 /* AppleTraceSwiftDemo */ = {
+			isa = PBXGroup;
+			children = (
+				D5A7C0DE0000000000000010 /* AppleTraceSwiftDemoApp.swift */,
+				D5A7C0DE0000000000000011 /* ContentView.swift */,
+				D5A7C0DE0000000000000012 /* Showcase.swift */,
+			);
+			path = AppleTraceSwiftDemo;
+			sourceTree = "<group>";
+		};
+		D5A7C0DE0000000000000004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D5A7C0DE000000000000000B /* AppleTraceSwiftDemo.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D5A7C0DE0000000000000005 /* AppleTraceSwiftDemo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D5A7C0DE0000000000000006 /* Build configuration list for PBXNativeTarget "AppleTraceSwiftDemo" */;
+			buildPhases = (
+				D5A7C0DE0000000000000008 /* Sources */,
+				D5A7C0DE0000000000000009 /* Frameworks */,
+				D5A7C0DE000000000000000A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AppleTraceSwiftDemo;
+			packageProductDependencies = (
+				D5A7C0DE0000000000000017 /* AppleTrace */,
+				D5A7C0DE0000000000000018 /* AppleTraceAuto */,
+			);
+			productName = AppleTraceSwiftDemo;
+			productReference = D5A7C0DE000000000000000B /* AppleTraceSwiftDemo.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D5A7C0DE0000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					D5A7C0DE0000000000000005 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = D5A7C0DE0000000000000007 /* Build configuration list for PBXProject "AppleTraceSwiftDemo" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D5A7C0DE0000000000000002;
+			packageReferences = (
+				D5A7C0DE0000000000000016 /* XCLocalSwiftPackageReference "../.." */,
+			);
+			productRefGroup = D5A7C0DE0000000000000004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D5A7C0DE0000000000000005 /* AppleTraceSwiftDemo */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D5A7C0DE000000000000000A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D5A7C0DE0000000000000008 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D5A7C0DE0000000000000014 /* ContentView.swift in Sources */,
+				D5A7C0DE0000000000000013 /* AppleTraceSwiftDemoApp.swift in Sources */,
+				D5A7C0DE0000000000000015 /* Showcase.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		D5A7C0DE000000000000000C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		D5A7C0DE000000000000000D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		D5A7C0DE000000000000000E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YPV49M8592;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.everettjf.AppleTraceSwiftDemo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D5A7C0DE000000000000000F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = YPV49M8592;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.everettjf.AppleTraceSwiftDemo;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		D5A7C0DE0000000000000006 /* Build configuration list for PBXNativeTarget "AppleTraceSwiftDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D5A7C0DE000000000000000E /* Debug */,
+				D5A7C0DE000000000000000F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D5A7C0DE0000000000000007 /* Build configuration list for PBXProject "AppleTraceSwiftDemo" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D5A7C0DE000000000000000C /* Debug */,
+				D5A7C0DE000000000000000D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		D5A7C0DE0000000000000016 /* XCLocalSwiftPackageReference "../.." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		D5A7C0DE0000000000000017 /* AppleTrace */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AppleTrace;
+		};
+		D5A7C0DE0000000000000018 /* AppleTraceAuto */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AppleTraceAuto;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = D5A7C0DE0000000000000001 /* Project object */;
+}
