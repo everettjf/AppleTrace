@@ -265,6 +265,44 @@ void saferCppFunction() {
 }
 ```
 
+### Tracing Swift (SwiftPM)
+
+The `objc_msgSend` hook can't see Swift's static / vtable / witness dispatch, so
+Swift is traced at the **source level**. Add the package
+(`https://github.com/everettjf/AppleTrace.git`) and `import AppleTrace`:
+
+```swift
+import AppleTrace
+
+// Scoped span (closes even on throw / early return):
+withSpan("loadFeed") { try? loadFeed() }
+
+// Or annotate — works for final classes, structs, and protocol methods alike,
+// because the begin/end is inserted into the body at compile time:
+@Traced
+func decodeImage() { /* ... */ }
+
+@TraceAll                 // stamps @Traced on every method with a body
+final class FeedViewModel {
+    func reload() { /* traced */ }
+    func render() { /* traced */ }
+}
+
+APTFlush()  // (or AppleTrace.flush()) before pulling the trace
+```
+
+Want zero-annotation auto-tracing of a class hierarchy? The optional
+`AppleTraceAuto` product bridges [SwiftTrace](https://github.com/johnno1962/SwiftTrace):
+
+```swift
+import AppleTraceAuto
+AppleTraceAuto.trace(aClass: FeedViewModel.self)   // entry/exit → AppleTrace
+```
+
+`AppleTraceAuto` can't see `final` / statically-dispatched methods (SwiftTrace's
+blind spot) — use the macros for those. See `docs/swift-tracing.md` and the
+runnable `AppleTraceAutoExample` (`swift run AppleTraceAutoExample`).
+
 ### Instant Markers, Counters & Async Events
 
 ```objc

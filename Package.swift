@@ -10,9 +10,11 @@ let package = Package(
     ],
     products: [
         .library(name: "AppleTrace", targets: ["AppleTrace"]),
+        .library(name: "AppleTraceAuto", targets: ["AppleTraceAuto"]),
     ],
     dependencies: [
         .package(url: "https://github.com/swiftlang/swift-syntax.git", from: "600.0.0"),
+        .package(url: "https://github.com/johnno1962/SwiftTrace.git", from: "8.6.0"),
     ],
     targets: [
         // The existing Objective-C++ trace core, reused from the Xcode tree.
@@ -26,6 +28,19 @@ let package = Package(
             dependencies: ["CAppleTrace", "AppleTraceMacrosPlugin"]
         ),
 
+        // Secondary route: zero-annotation auto-tracing by bridging the proven
+        // SwiftTrace runtime hook into AppleTrace events.
+        .target(
+            name: "AppleTraceAuto",
+            dependencies: [
+                "CAppleTrace",
+                .product(name: "SwiftTrace", package: "SwiftTrace"),
+            ],
+            // SwiftTrace's API relies on global mutable state (swizzleFactory);
+            // build this thin bridge in the Swift 5 language mode to match it.
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+
         // SwiftSyntax compiler plugin implementing the macros.
         .macro(
             name: "AppleTraceMacrosPlugin",
@@ -37,10 +52,19 @@ let package = Package(
             ]
         ),
 
+        // Runnable demo + smoke check for the SwiftTrace bridge (which an
+        // XCTest bundle can't exercise — see the file header).
+        .executableTarget(
+            name: "AppleTraceAutoExample",
+            dependencies: ["AppleTrace", "AppleTraceAuto"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+
         .testTarget(
             name: "AppleTraceTests",
             dependencies: [
                 "AppleTrace",
+                "AppleTraceAuto",
                 "AppleTraceMacrosPlugin",
                 .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
             ]

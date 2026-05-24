@@ -1,5 +1,5 @@
 {
-  "originHash" : "b2e6d3bc48895e7f76c0a6c9afd620e1f2c8124303987d6dbe81d1f6d8012e67",
+  "originHash" : "76657f316e4e4ecfe7c536d93c17ee34f9ec7da3dcb505dea413138c3222211f",
   "pins" : [
     {
       "identity" : "swift-syntax",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "0687f71944021d616d34d922343dcef086855920",
         "version" : "600.0.1"
+      }
+    },
+    {
+      "identity" : "swifttrace",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/johnno1962/SwiftTrace.git",
+      "state" : {
+        "revision" : "589f37149d5b32cbdd44c70809df23b4f4fa0260",
+        "version" : "8.6.1"
       }
     }
   ],

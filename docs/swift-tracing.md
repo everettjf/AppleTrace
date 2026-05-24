@@ -1,19 +1,26 @@
 # Research: Tracing Swift Code in AppleTrace
 
-Status: **Phase 1 (Swift macros) implemented; auxiliary runtime hook pending.**
-This document surveys how the industry traces Swift, why AppleTrace's current
-`objc_msgSend` hook cannot, and lays out phased options. The chosen direction is
-**source-level instrumentation via Swift macros as the primary route**, with a
-SwiftTrace-style runtime hook as an optional secondary route.
+Status: **Both routes implemented.** This document surveys how the industry
+traces Swift, why AppleTrace's current `objc_msgSend` hook cannot, and lays out
+the chosen direction: **source-level instrumentation via Swift macros as the
+primary route**, with a SwiftTrace-backed runtime hook as the secondary route.
 
-Implemented so far (SwiftPM package at the repo root — `Package.swift`,
-`Sources/AppleTrace`, `Sources/AppleTraceMacrosPlugin`):
-- `withSpan(_:_:)`, plus `beginSection` / `endSection` / `traceInstant` /
-  `traceCounter` / `asyncBegin` / `asyncEnd` / `flush` Swift wrappers over the C
-  core.
-- `@Traced` (body macro) and `@TraceAll` (member-attribute macro), which wrap
-  function bodies in a `#function`-named section regardless of dispatch kind.
-  Verified on Swift 6.2 with no experimental feature flags.
+Implemented (SwiftPM package at the repo root — `Package.swift`, `Sources/`):
+- **Primary (macros), `AppleTrace` target:** `withSpan(_:_:)`, plus
+  `beginSection` / `endSection` / `traceInstant` / `traceCounter` /
+  `asyncBegin` / `asyncEnd` / `flush` wrappers over the C core; and `@Traced`
+  (body macro) + `@TraceAll` (member-attribute macro) that wrap function bodies
+  in a `#function`-named section regardless of dispatch kind. Verified on
+  Swift 6.2 with no experimental feature flags (`tests/AppleTraceTests`).
+- **Secondary (SwiftTrace bridge), `AppleTraceAuto` target:** bridges
+  `johnno1962/SwiftTrace` so each traced method's entry/exit becomes an
+  AppleTrace section (`AppleTraceAuto.trace(aClass:)` /
+  `traceClasses(matchingPattern:)` / `traceBundle(containing:)`). Zero
+  annotation; subject to SwiftTrace's blind spot (`final` / statically-dispatched
+  methods — use the macros for those). Verified via the runnable
+  `AppleTraceAutoExample` target (`swift run AppleTraceAutoExample`); it can't be
+  exercised from an XCTest bundle because SwiftTrace's metadata scanning needs a
+  normal executable / app image.
 
 ## 1. Problem
 

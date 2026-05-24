@@ -256,6 +256,44 @@ void saferCppFunction() {
 }
 ```
 
+### 追踪 Swift 代码（SwiftPM）
+
+`objc_msgSend` hook 看不到 Swift 的静态 / vtable / witness 派发，所以 Swift 走
+**源码级埋点**。把本仓库作为 SwiftPM 依赖添加
+（`https://github.com/everettjf/AppleTrace.git`），然后 `import AppleTrace`：
+
+```swift
+import AppleTrace
+
+// 作用域 span（即使 throw / 提前返回也会闭合）：
+withSpan("loadFeed") { try? loadFeed() }
+
+// 或用宏标注——对 final 类、struct、protocol 方法都生效，
+// 因为 begin/end 是在编译期插入函数体的：
+@Traced
+func decodeImage() { /* ... */ }
+
+@TraceAll                 // 给每个有函数体的方法都自动加 @Traced
+final class FeedViewModel {
+    func reload() { /* 已追踪 */ }
+    func render() { /* 已追踪 */ }
+}
+
+APTFlush()  // （或 AppleTrace.flush()）读取 trace 前先 flush
+```
+
+想要零标注地自动追踪整个类层级？可选的 `AppleTraceAuto` product 桥接了
+[SwiftTrace](https://github.com/johnno1962/SwiftTrace)：
+
+```swift
+import AppleTraceAuto
+AppleTraceAuto.trace(aClass: FeedViewModel.self)   // 进入/退出 → AppleTrace
+```
+
+`AppleTraceAuto` 看不到 `final` / 静态派发的方法（SwiftTrace 的盲区）——这类用宏。
+详见 `docs/swift-tracing.md` 与可运行的 `AppleTraceAutoExample`
+（`swift run AppleTraceAutoExample`）。
+
 ### 瞬时标记、计数器与异步事件
 
 ```objc
