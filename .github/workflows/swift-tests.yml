@@ -1,0 +1,31 @@
+name: Swift Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  swift-package:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift version
+        run: swift --version
+
+      - name: Run package tests (macros + runtime)
+        run: swift test
+        env:
+          APPLETRACE_DATA_DIR: ${{ runner.temp }}/appletracedata-tests
+
+      - name: Smoke-test the SwiftTrace bridge (executable)
+        run: swift run AppleTraceAutoExample
+        env:
+          APPLETRACE_DATA_DIR: ${{ runner.temp }}/appletracedata-example
+
+      - name: Build both routes for the iOS Simulator
+        run: |
+          xcodebuild -scheme AppleTrace \
+            -destination 'generic/platform=iOS Simulator' build
+          xcodebuild -scheme AppleTraceAuto \
+            -destination 'generic/platform=iOS Simulator' build
