@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AppleTrace — Tutorial &amp; Usage Guide</title>
+<meta name="description" content="A complete guide to AppleTrace: instrument Objective-C, C/C++, and Swift, then explore the timeline in Perfetto.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+    <a class="brand" href="index.html"><span class="dot"></span>AppleTrace</a>
+    <button class="menu-btn" aria-label="Menu">☰</button>
+    <div class="spacer"></div>
+    <nav>
+        <a class="hide-sm" href="#quick-start">Quick Start</a>
+        <a class="hide-sm" href="https://github.com/everettjf/AppleTrace" target="_blank" rel="noopener">GitHub ↗</a>
+        <span class="lang-toggle"><a class="active" href="index.html">EN</a><a href="zh.html">中文</a></span>
+    </nav>
+</header>
+
+<div class="scrim"></div>
+
+<div class="shell">
+    <aside class="sidebar">
+        <h4>Get Started</h4>
+        <a href="#introduction">Introduction</a>
+        <a href="#quick-start">Quick Start</a>
+        <a href="#installation">Installation</a>
+        <h4>Tutorials</h4>
+        <a href="#manual">Manual Instrumentation</a>
+        <a href="#swift">Tracing Swift</a>
+        <a href="#objc-hook">objc_msgSend Hook</a>
+        <a href="#events">Event Types</a>
+        <h4>Workflow</h4>
+        <a href="#visualize">Visualize in Perfetto</a>
+        <a href="#demos">Demo Apps</a>
+        <h4>Reference</h4>
+        <a href="#env">Environment Variables</a>
+        <a href="#platforms">Platform Support</a>
+        <a href="#faq">FAQ &amp; Troubleshooting</a>
+    </aside>
+
+    <main>
+        <div class="content">
+
+        <!-- HERO -->
+        <div class="hero">
+            <div class="eyebrow">iOS / macOS Tracing → Perfetto</div>
+            <h1>The <span class="apple">AppleTrace</span> field guide.</h1>
+            <p class="lede">A lightweight, embeddable tracer that records your app's execution timeline — manual sections, Swift macros, or every <code>objc_msgSend</code> — and renders it in <a href="https://ui.perfetto.dev" target="_blank" rel="noopener">Perfetto</a>, right in the browser.</p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="#quick-start">Start in 5 minutes →</a>
+                <a class="btn btn-ghost" href="https://github.com/everettjf/AppleTrace" target="_blank" rel="noopener">View on GitHub</a>
+            </div>
+
+            <div class="timeline" aria-hidden="true">
+                <div class="tl-row"><span class="tl-label">Main Thread</span><span class="tl-track">
+                    <span class="tl-slice" style="left:0;width:24%;background:var(--accent);animation-delay:.05s"></span>
+                    <span class="tl-slice" style="left:26%;width:40%;background:var(--accent);animation-delay:.15s"></span>
+                    <span class="tl-slice" style="left:68%;width:30%;background:var(--accent);animation-delay:.25s"></span>
+                </span></div>
+                <div class="tl-row"><span class="tl-label">RenderLoop</span><span class="tl-track">
+                    <span class="tl-slice" style="left:8%;width:14%;background:var(--violet);animation-delay:.3s"></span>
+                    <span class="tl-slice" style="left:24%;width:14%;background:var(--violet);animation-delay:.4s"></span>
+                    <span class="tl-slice" style="left:40%;width:14%;background:var(--violet);animation-delay:.5s"></span>
+                    <span class="tl-slice" style="left:56%;width:14%;background:var(--violet);animation-delay:.6s"></span>
+                </span></div>
+                <div class="tl-row"><span class="tl-label">NetworkClient</span><span class="tl-track">
+                    <span class="tl-slice" style="left:30%;width:52%;background:var(--coral);animation-delay:.45s"></span>
+                </span></div>
+                <div class="tl-row"><span class="tl-label">FPS</span><span class="tl-track">
+                    <span class="tl-slice" style="left:0;width:100%;background:linear-gradient(90deg,var(--amber),transparent);height:8px;top:4px;animation-delay:.7s"></span>
+                </span></div>
+            </div>
+        </div>
+
+        <!-- INTRODUCTION -->
+        <section id="introduction">
+            <h2>Introduction</h2>
+            <p>AppleTrace instruments your app — by adding markers, annotating Swift functions, or hooking message sends — and writes a timeline of events into sandbox <em>trace fragments</em>. A small Python pipeline merges those fragments into a single <code>trace.json</code> that you open directly in Perfetto to explore the call timeline, durations, threads, and counters.</p>
+            <p>There are three ways to produce events. Pick whichever fits — they all land in the same trace:</p>
+            <div class="grid2">
+                <div class="card">
+                    <span class="tag everywhere">all platforms</span>
+                    <h3>Manual sections</h3>
+                    <p>Wrap code in <code>APTBeginSection</code>/<code>APTEndSection</code> (or the Swift macros). The lowest-risk baseline; you control exactly what is timed.</p>
+                </div>
+                <div class="card">
+                    <span class="tag arm">arm64</span>
+                    <h3>objc_msgSend hook</h3>
+                    <p>Automatically trace every Objective-C message send via a fishhook-style symbol rebind. Zero code changes, Objective-C only.</p>
+                </div>
+                <div class="card">
+                    <span class="tag sim">Simulator / macOS</span>
+                    <h3>Swift auto-hook</h3>
+                    <p>The optional <code>AppleTraceAuto</code> product bridges SwiftTrace to trace Swift class hierarchies with no annotations.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- QUICK START -->
+        <section id="quick-start">
+            <h2>Quick Start</h2>
+            <p>The fastest path to a trace is the bundled demo app — no instrumentation to write.</p>
+            <ol class="steps">
+                <li><strong>Clone &amp; open a demo.</strong>
+                    <div class="code"><div class="code-head"><span class="lang">bash</span><button class="copy">copy</button></div><pre><code>git clone https://github.com/everettjf/AppleTrace.git
+cd AppleTrace
+open sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj</code></pre></div>
+                </li>
+                <li><strong>Run it</strong> on a Simulator (or device) and tap <strong>Generate Trace</strong>. The app runs a multi-threaded workload and prints the on-disk <em>trace directory</em>.</li>
+                <li><strong>Merge the fragments</strong> into a single trace on your Mac:
+                    <div class="code"><div class="code-head"><span class="lang">bash</span><button class="copy">copy</button></div><pre><code>python3 merge.py -d "&lt;trace directory shown in the app&gt;"
+# → writes trace.json next to the fragments</code></pre></div>
+                </li>
+                <li><strong>Open it in Perfetto.</strong> Go to <a href="https://ui.perfetto.dev" target="_blank" rel="noopener">ui.perfetto.dev</a> and drag in <code>trace.json</code>. That's it.</li>
+            </ol>
+            <div class="callout tip"><span class="ic">💡</span><p>In a hurry? <code>sh go.sh "&lt;trace directory&gt;"</code> merges <em>and</em> opens Perfetto in one step.</p></div>
+        </section>
+
+        <!-- INSTALLATION -->
+        <section id="installation">
+            <h2>Installation</h2>
+            <h3>Requirements</h3>
+            <ul>
+                <li>Xcode, Python 3, and a browser (Perfetto runs at <a href="https://ui.perfetto.dev" target="_blank" rel="noopener">ui.perfetto.dev</a>).</li>
+                <li><code>ldid</code> only if you re-sign loader builds; <code>pytest</code> only for the test suite.</li>
+            </ul>
+
+            <h3>Swift Package (for Swift, and the cleanest path for new projects)</h3>
+            <p>Add the package and depend on the <code>AppleTrace</code> product (and optionally <code>AppleTraceAuto</code>):</p>
+            <div class="code"><div class="code-head"><span class="lang">swift — Package.swift</span><button class="copy">copy</button></div><pre><code>dependencies: [
+    .package(url: "https://github.com/everettjf/AppleTrace.git", branch: "master"),
+],
+targets: [
+    .target(name: "MyApp", dependencies: [
+        .product(name: "AppleTrace", package: "AppleTrace"),
+        // optional, Simulator/macOS only:
+        .product(name: "AppleTraceAuto", package: "AppleTrace"),
+    ]),
+]</code></pre></div>
+
+            <h3>Framework embedding (Objective-C / C / C++)</h3>
+            <p>Open <code>appletrace/appletrace.xcodeproj</code>, build the framework, and embed <code>appletrace.framework</code> into your target. See <code>sample/ManualSectionDemo</code> for a working setup.</p>
+        </section>
+
+        <!-- MANUAL -->
+        <section id="manual">
+            <h2>Tutorial · Manual Instrumentation</h2>
+            <p>Manual sections are the recommended baseline — they work on every iOS/macOS version and produce clean, descriptively-named slices.</p>
+
+            <h3>Objective-C</h3>
+            <div class="code"><div class="code-head"><span class="lang">objective-c</span><button class="copy">copy</button></div><pre><code>#import &lt;appletrace/appletrace.h&gt;
+
+- (void)viewDidLoad {
+    APTBegin;                       // auto-named "[ClassName viewDidLoad]"
+    [super viewDidLoad];
+    APTEnd;
+}
+
+- (void)loadFeed {
+    APTBeginSection("network");     // explicit section name
+    // ... work ...
+    APTEndSection("network");
+}</code></pre></div>
+            <p><code>APTBegin</code> / <code>APTEnd</code> name the section after the enclosing class and selector. Use <code>APTBeginSection</code> / <code>APTEndSection</code> when you want a custom name. Pairs nest on the same thread (LIFO).</p>
+
+            <h3>C / C++</h3>
+            <div class="code"><div class="code-head"><span class="lang">cpp</span><button class="copy">copy</button></div><pre><code>#include &lt;appletrace/appletrace.h&gt;
+
+void process() {
+    APTBeginSection("process");
+    // ... work ...
+    APTEndSection("process");
+}
+
+void safer() {
+    APTScopeSection("decode");      // RAII: ends automatically at scope exit
+    // ... work ...
+}</code></pre></div>
+            <div class="callout warn"><span class="ic">⚠️</span><p>Events are buffered per thread and flushed on a size threshold, on <code>APTFlush()</code>, or at thread exit. <strong>Call <code>APTFlush()</code></strong> (e.g. when backgrounding) before pulling the trace, or short-lived runs may look empty.</p></div>
+        </section>
+
+        <!-- SWIFT -->
+        <section id="swift">
+            <h2>Tutorial · Tracing Swift</h2>
+            <p>The <code>objc_msgSend</code> hook can't see Swift's static / vtable / witness dispatch, so Swift is traced at the <strong>source level</strong>. After adding the Swift package, <code>import AppleTrace</code>.</p>
+
+            <h3>Scoped spans &amp; macros</h3>
+            <div class="code"><div class="code-head"><span class="lang">swift</span><button class="copy">copy</button></div><pre><code>import AppleTrace
+
+// Scoped span — closes even on throw / early return:
+withSpan("loadFeed") { try? loadFeed() }
+
+// Annotate a function. The section is named after #function, so it works
+// for final classes, structs, and protocol methods alike — the begin/end
+// is inserted into the body at compile time, sidestepping dispatch entirely.
+@Traced
+func decodeImage() { /* ... */ }
+
+// @TraceAll stamps @Traced onto every method with a body:
+@TraceAll
+final class FeedViewModel {
+    func reload() { /* traced */ }
+    func render() { /* traced */ }
+}
+
+APTFlush()   // or AppleTrace.flush()</code></pre></div>
+
+            <h3>Zero-annotation auto-tracing</h3>
+            <p>The optional <code>AppleTraceAuto</code> product bridges <a href="https://github.com/johnno1962/SwiftTrace" target="_blank" rel="noopener">SwiftTrace</a> to hook a class hierarchy without annotations:</p>
+            <div class="code"><div class="code-head"><span class="lang">swift</span><button class="copy">copy</button></div><pre><code>import AppleTraceAuto
+
+#if targetEnvironment(simulator)
+AppleTraceAuto.trace(aClass: FeedViewModel.self)   // entry/exit → AppleTrace
+#endif</code></pre></div>
+            <div class="callout danger"><span class="ic">🚫</span><p><strong><code>AppleTraceAuto</code> is Simulator / macOS only.</strong> SwiftTrace patches pointer-authenticated vtable slots, which is unsafe on real devices — always gate it with <code>#if targetEnvironment(simulator)</code>. It also can't see <code>final</code> / statically-dispatched methods. The macros have neither limitation and are the on-device path.</p></div>
+        </section>
+
+        <!-- OBJC HOOK -->
+        <section id="objc-hook">
+            <h2>Tutorial · Automatic objc_msgSend Hook</h2>
+            <p>For Objective-C apps you can trace <em>every</em> message send with no manual markers. The hook is an arm64 fishhook-style symbol rebind; install it once after launch:</p>
+            <div class="code"><div class="code-head"><span class="lang">objective-c</span><button class="copy">copy</button></div><pre><code>// e.g. early in application:didFinishLaunchingWithOptions:
+if (APTInstallObjcMsgSendHook()) {
+    NSLog(@"AppleTrace: objc_msgSend hook installed");
+}</code></pre></div>
+            <p>Every traced send becomes a <code>[Class]selector</code> begin/end pair. See <code>sample/TraceAllMsgDemo</code> for a full setup, including the validated handling of floating-point arguments, struct returns, and <code>super</code> dispatch.</p>
+            <div class="callout warn"><span class="ic">⚠️</span><p><strong>arm64 only.</strong> The hook hard-errors on arm64e (its callers reach <code>objc_msgSend</code> through authenticated GOT entries). Build a plain arm64 slice.</p></div>
+        </section>
+
+        <!-- EVENTS -->
+        <section id="events">
+            <h2>Tutorial · Event Types</h2>
+            <p>Beyond sections, AppleTrace records the event kinds Perfetto knows how to draw:</p>
+            <div class="code"><div class="code-head"><span class="lang">objective-c</span><button class="copy">copy</button></div><pre><code>// Instantaneous marker on the current thread's timeline
+APTInstant("cache_miss");
+
+// A value plotted over time → a counter graph track (memory, FPS, queue depth…)
+APTCounter("resident_mb", 142.5);
+APTCounter("fps", 60);
+
+// Work that flows across threads / queues, matched by (name, id) → async arc
+uint64_t reqID = 42;
+APTAsyncBegin("image_load", reqID);
+dispatch_async(queue, ^{
+    APTAsyncEnd("image_load", reqID);
+});</code></pre></div>
+            <table>
+                <tr><th>Event</th><th>API</th><th>Perfetto rendering</th></tr>
+                <tr><td>Section</td><td><code>APTBeginSection</code> / <code>APTEndSection</code></td><td>Nested slices on a thread track</td></tr>
+                <tr><td>Instant</td><td><code>APTInstant</code></td><td>A marker at a point in time</td></tr>
+                <tr><td>Counter</td><td><code>APTCounter</code></td><td>A graph track</td></tr>
+                <tr><td>Async</td><td><code>APTAsyncBegin</code> / <code>APTAsyncEnd</code></td><td>Arcs that can cross threads</td></tr>
+            </table>
+            <p>The Swift wrappers mirror these: <code>traceInstant</code>, <code>traceCounter</code>, <code>asyncBegin</code>, <code>asyncEnd</code>.</p>
+        </section>
+
+        <!-- VISUALIZE -->
+        <section id="visualize">
+            <h2>Visualize in Perfetto</h2>
+            <h3>1 · Pull the trace fragments</h3>
+            <p>Fragments are written to <code>&lt;app sandbox&gt;/Library/appletracedata</code>.</p>
+            <ul>
+                <li><strong>Simulator:</strong> the folder is already on your Mac; the demo app prints the path.</li>
+                <li><strong>Device:</strong> Xcode ▸ <em>Window ▸ Devices and Simulators ▸ Download Container</em>, or <code>xcrun devicectl device copy from … --domain-type appDataContainer --source Library/appletracedata --destination ./trace</code>.</li>
+            </ul>
+            <h3>2 · Merge</h3>
+            <div class="code"><div class="code-head"><span class="lang">bash</span><button class="copy">copy</button></div><pre><code>python3 merge.py -d /path/to/appletracedata     # → trace.json
+# or the unified CLI:
+python3 scripts/appletrace_cli.py open /path/to/appletracedata
+# or merge AND open Perfetto:
+sh go.sh /path/to/appletracedata</code></pre></div>
+            <h3>3 · Explore</h3>
+            <p>Drag <code>trace.json</code> into <a href="https://ui.perfetto.dev" target="_blank" rel="noopener">ui.perfetto.dev</a>. Use <kbd>W</kbd>/<kbd>S</kbd> to zoom, <kbd>A</kbd>/<kbd>D</kbd> to pan, and the search box to jump to a slice.</p>
+            <h3>Binary fragments (optional, smaller &amp; faster)</h3>
+            <p>Set <code>APPLETRACE_BINARY=1</code> to write a compact binary fragment format instead of text. <code>merge.py</code> decodes both transparently — no workflow change.</p>
+        </section>
+
+        <!-- DEMOS -->
+        <section id="demos">
+            <h2>Demo Apps</h2>
+            <p>Three runnable samples, each a complete reference:</p>
+            <table>
+                <tr><th>Sample</th><th>Language</th><th>Demonstrates</th></tr>
+                <tr><td><code>sample/ManualSectionDemo</code></td><td>Objective-C</td><td>Manual sections, counters, async, threads</td></tr>
+                <tr><td><code>sample/AppleTraceSwiftDemo</code></td><td>Swift</td><td><code>@Traced</code>/<code>@TraceAll</code>/<code>withSpan</code> + the <code>AppleTraceAuto</code> hook</td></tr>
+                <tr><td><code>sample/TraceAllMsgDemo</code></td><td>Objective-C</td><td>Automatic <code>objc_msgSend</code> hook</td></tr>
+            </table>
+            <p>Each guided app has a <strong>Generate Trace</strong> button, shows the trace directory, and prints the exact merge/Perfetto commands. The Swift demo consumes the local package, so open it from the repo so Xcode resolves the products automatically.</p>
+        </section>
+
+        <!-- ENV -->
+        <section id="env">
+            <h2>Environment Variables</h2>
+            <table>
+                <tr><th>Variable</th><th>Default</th><th>Effect</th></tr>
+                <tr><td><code>APPLETRACE_ENABLED</code></td><td><code>true</code></td><td>Master on/off switch for recording.</td></tr>
+                <tr><td><code>APPLETRACE_BINARY</code></td><td><code>false</code></td><td>Write compact binary fragments instead of text.</td></tr>
+                <tr><td><code>APPLETRACE_DATA_DIR</code></td><td><em>sandbox</em></td><td>Override where fragments are written.</td></tr>
+                <tr><td><code>APPLETRACE_BLOCK_SIZE_MB</code></td><td><code>16</code></td><td>Per-fragment mmap block size (1–256 MB).</td></tr>
+                <tr><td><code>APPLETRACE_KEEP_EXISTING</code></td><td><code>false</code></td><td>Keep prior trace dirs instead of replacing them.</td></tr>
+            </table>
+            <p>Runtime controls are also available in code: <code>APTSetEnabled(BOOL)</code>, <code>APTIsEnabled()</code>, <code>APTGetTraceDirectory()</code>, <code>APTFlush()</code>, <code>APTSyncWait()</code>.</p>
+        </section>
+
+        <!-- PLATFORMS -->
+        <section id="platforms">
+            <h2>Platform Support</h2>
+            <table>
+                <tr><th>Mode</th><th>Where it works</th></tr>
+                <tr><td>Manual sections &amp; events</td><td>Every iOS/macOS version, all languages</td></tr>
+                <tr><td>Swift macros (<code>@Traced</code>/<code>@TraceAll</code>/<code>withSpan</code>)</td><td>Simulator <strong>and device</strong></td></tr>
+                <tr><td><code>objc_msgSend</code> hook</td><td>arm64 (not arm64e)</td></tr>
+                <tr><td><code>AppleTraceAuto</code> (SwiftTrace)</td><td>Simulator / macOS only</td></tr>
+            </table>
+            <h3>Why Swift needs source-level tracing</h3>
+            <p>Swift avoids message dispatch for speed: <code>struct</code>/<code>final</code> methods and whole-module-optimized calls are <em>statically</em> dispatched; class methods use a <em>vtable</em>; protocol methods use a <em>witness table</em>. None go through <code>objc_msgSend</code>, so only the thin <code>@objc dynamic</code> surface is visible to the auto-hook. The macros instrument the source directly, which is why they cover all four dispatch kinds.</p>
+        </section>
+
+        <!-- FAQ -->
+        <section id="faq">
+            <h2>FAQ &amp; Troubleshooting</h2>
+            <h4>My trace is empty / only has metadata</h4>
+            <p>The writer batches per thread. Call <code>APTFlush()</code> before reading the trace (e.g. on backgrounding, or at the end of your scenario). The demo apps flush for you.</p>
+            <h4>Build fails: <code>SDK does not contain 'libarclite'</code></h4>
+            <p>An old deployment target. Set <code>IPHONEOS_DEPLOYMENT_TARGET</code> to 12.0 or later — recent Xcode dropped the ARC compatibility library for pre-12 targets.</p>
+            <h4>The Swift app crashes at launch with <code>Library not loaded: @rpath/SwiftTrace.framework</code></h4>
+            <p>The app target needs <code>LD_RUNPATH_SEARCH_PATHS = @executable_path/Frameworks</code> so dyld can find the embedded dynamic framework on device.</p>
+            <h4><code>AppleTraceAuto</code> traces nothing for some methods</h4>
+            <p>SwiftTrace can't hook <code>final</code> or statically-dispatched methods, and it's Simulator/macOS only. Use the <code>@Traced</code>/<code>@TraceAll</code> macros for those.</p>
+            <h4>Command-line <code>xcodebuild</code> can't find SwiftSyntax for the macro plugin</h4>
+            <p>Drop the <code>-sdk iphonesimulator</code> flag and pass only <code>-destination</code>; <code>-sdk</code> forces the host macro plugin onto the wrong SDK.</p>
+        </section>
+
+        </div><!-- /content -->
+        <footer>
+            <p>AppleTrace is MIT-licensed. Visualization is <a href="https://ui.perfetto.dev" target="_blank" rel="noopener">Perfetto</a>-only. ·
+            <a href="https://github.com/everettjf/AppleTrace" target="_blank" rel="noopener">github.com/everettjf/AppleTrace</a> ·
+            <a href="zh.html">中文版</a></p>
+        </footer>
+    </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

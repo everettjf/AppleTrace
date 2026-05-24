@@ -11,6 +11,8 @@
 
 **A lightweight, embeddable Objective-C tracer that produces shareable [Perfetto](https://ui.perfetto.dev) traces**
 
+📖 **[Read the full Tutorial &amp; Usage Guide →](https://everettjf.github.io/AppleTrace/)**
+
 [English](README.md) | [中文](README_CN.md)
 
 </div>
