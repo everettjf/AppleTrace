@@ -340,6 +340,9 @@ python3 -m pytest tests
 ./scripts/test_objc_msgsend_hook.sh
 ./scripts/test_objc_msgsend_hook_experimental.sh
 
+# 在已连接的 arm64 真机上运行同样的 smoke test（text + binary 两种模式）
+./scripts/test_objc_msgsend_hook_device.sh
+
 # 批量写入并发压测（host 构建，text + binary 两种模式）
 ./scripts/test_batching_stress.sh
 ```

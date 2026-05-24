@@ -43,6 +43,8 @@ This reference is for AI agents and contributors working inside the AppleTrace r
   - `scripts/test_objc_msgsend_hook_experimental.sh` — same harness with the experimental scenario, validating `super` dispatch, cross-thread events, stack-passed/floating-point arguments, and small aggregate returns.
   - `scripts/test_batching_stress.sh` — host build of the per-thread batched writer; runs the multithreaded workload in both text and binary (`APPLETRACE_BINARY=1`) modes and asserts no events are lost or duplicated.
   - The Simulator on Apple silicon runs the arm64 slice, so the hook ABI is exercised on a real arm64 target. The scripts assume a Python 3 with `pytest` available (e.g. a venv) on `PATH`.
+- Local-only (needs hardware, not run in CI):
+  - `scripts/test_objc_msgsend_hook_device.sh` — builds, installs, and runs `TraceAllMsgDemo` on a connected, unlocked arm64 device via `devicectl`, then pulls and verifies the trace in both text and binary modes. Requires a signing identity; set `DEVICE_UDID` to target a specific device.
 - Still manual:
   - Instruments profiling of the batched writer (`docs/perf-batching-design.md` section 9, step 3).
   - On-device validation of the loader / LLDB dylib-injection path on a real arm64 device.

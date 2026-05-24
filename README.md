@@ -351,6 +351,9 @@ python3 -m pytest tests
 ./scripts/test_objc_msgsend_hook.sh
 ./scripts/test_objc_msgsend_hook_experimental.sh
 
+# Same smoke test on a connected arm64 device (text + binary modes)
+./scripts/test_objc_msgsend_hook_device.sh
+
 # Batched-writer concurrency stress test (host build, text + binary modes)
 ./scripts/test_batching_stress.sh
 ```
