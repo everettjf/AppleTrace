@@ -301,9 +301,10 @@ import AppleTraceAuto
 AppleTraceAuto.trace(aClass: FeedViewModel.self)   // 进入/退出 → AppleTrace
 ```
 
-`AppleTraceAuto` 看不到 `final` / 静态派发的方法（SwiftTrace 的盲区）——这类用宏。
-详见 `docs/swift-tracing.md` 与可运行的 `AppleTraceAutoExample`
-（`swift run AppleTraceAutoExample`）。
+`AppleTraceAuto` **仅限模拟器 / macOS**（SwiftTrace 会改写经过指针认证的 vtable 槽，
+在真机上不安全——请用 `#if targetEnvironment(simulator)` 包起来），且看不到 `final` /
+静态派发的方法。宏没有这些限制，是真机上的首选路径。详见 `docs/swift-tracing.md`
+与可运行的 `AppleTraceAutoExample`（`swift run AppleTraceAutoExample`）。
 
 ### 瞬时标记、计数器与异步事件
 

@@ -58,9 +58,14 @@ enum SwiftShowcase {
     static func run() -> String {
         Thread.current.name = "Coordinator"   // names this track in Perfetto
 
-        // Route 2: auto-trace the ImageLoader hierarchy (no annotations).
+        // Route 2 (Simulator / macOS only): auto-trace the ImageLoader hierarchy
+        // with no annotations. SwiftTrace patches vtable function pointers, which
+        // are pointer-authenticated on real devices (arm64e-style signing), so it
+        // is unsupported on-device — the macros below cover those cases there.
+        #if targetEnvironment(simulator)
         AppleTraceAuto.trace(aClass: ImageLoader.self)
         defer { AppleTraceAuto.stop() }
+        #endif
 
         traceInstant("scenario_start")
 

@@ -17,7 +17,10 @@ Implemented (SwiftPM package at the repo root — `Package.swift`, `Sources/`):
   AppleTrace section (`AppleTraceAuto.trace(aClass:)` /
   `traceClasses(matchingPattern:)` / `traceBundle(containing:)`). Zero
   annotation; subject to SwiftTrace's blind spot (`final` / statically-dispatched
-  methods — use the macros for those). Verified via the runnable
+  methods — use the macros for those). **Simulator / macOS only**: SwiftTrace
+  patches pointer-authenticated vtable slots, which is unsafe on real devices, so
+  gate its use with `#if targetEnvironment(simulator)`. The macros are the
+  on-device path. Verified via the runnable
   `AppleTraceAutoExample` target (`swift run AppleTraceAutoExample`); it can't be
   exercised from an XCTest bundle because SwiftTrace's metadata scanning needs a
   normal executable / app image.
@@ -25,10 +28,14 @@ Implemented (SwiftPM package at the repo root — `Package.swift`, `Sources/`):
   and exercises both routes in one guided app — tap "Generate Trace" to run a
   multi-threaded workload (~490 events across 5 named tracks: macro-route spans,
   the SwiftTrace-hooked `ImageLoader`, counters, async arcs) and see the steps to
-  open it in Perfetto. Verified on the iPhone 17 Simulator and built+signed for
-  device. Note: the bridge subclasses the lightweight `Swizzle` (not `Decorated`)
-  and skips `super` — `Decorated`'s argument-reflection path hung in the iOS
-  app context.
+  open it in Perfetto. Verified on the iPhone 17 Simulator (~490 events, both
+  routes) **and on a real iPhone 17 Pro** (~460 events, macro route only — the
+  SwiftTrace route is `#if targetEnvironment(simulator)`-gated). Two device
+  issues were fixed along the way: the app project needs
+  `LD_RUNPATH_SEARCH_PATHS = @executable_path/Frameworks` or dyld can't load the
+  embedded SwiftTrace framework; and the bridge subclasses the lightweight
+  `Swizzle` (not `Decorated`, whose argument-reflection path hung in the iOS app
+  context).
 
 ## 1. Problem
 

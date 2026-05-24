@@ -8,11 +8,15 @@
 //  APTEndSection so the calls land in the same Perfetto trace as everything
 //  else.
 //
-//  This is a development/diagnostics tool. Per SwiftTrace's own limitations it
-//  cannot see `final`/internal methods that the optimizer dispatches directly
-//  (use the @Traced / @TraceAll macros for those). For exact, dispatch-agnostic
-//  coverage of your own code, prefer the macros; use this when you want
-//  zero-annotation coverage of class hierarchies.
+//  This is a development/diagnostics tool, **best suited to the Simulator and
+//  macOS**. SwiftTrace patches vtable function pointers, which are
+//  pointer-authenticated on real devices, so tracing typically isn't safe
+//  on-device — gate calls with `#if targetEnvironment(simulator)` and rely on
+//  the @Traced / @TraceAll macros there (they work everywhere). Per SwiftTrace's
+//  own limitations it also cannot see `final`/internal methods the optimizer
+//  dispatches directly. For exact, dispatch-agnostic coverage of your own code,
+//  prefer the macros; use this for zero-annotation coverage of class hierarchies
+//  in the Simulator.
 
 import CAppleTrace
 import SwiftTrace

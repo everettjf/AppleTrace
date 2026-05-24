@@ -18,7 +18,7 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("AppleTrace 🍎")
                     .font(.largeTitle.bold())
-                Text("Swift demo — macros (`@Traced` / `@TraceAll` / `withSpan`) plus the optional SwiftTrace auto-hook.")
+                Text("Swift demo — macros (`@Traced` / `@TraceAll` / `withSpan`) everywhere, plus the optional SwiftTrace auto-hook (Simulator / macOS only).")
                     .font(.callout)
                     .foregroundStyle(.secondary)
 

@@ -310,9 +310,12 @@ import AppleTraceAuto
 AppleTraceAuto.trace(aClass: FeedViewModel.self)   // entry/exit → AppleTrace
 ```
 
-`AppleTraceAuto` can't see `final` / statically-dispatched methods (SwiftTrace's
-blind spot) — use the macros for those. See `docs/swift-tracing.md` and the
-runnable `AppleTraceAutoExample` (`swift run AppleTraceAutoExample`).
+`AppleTraceAuto` is **Simulator / macOS only** (SwiftTrace patches
+pointer-authenticated vtable slots, unsafe on real devices — gate it with
+`#if targetEnvironment(simulator)`), and it can't see `final` /
+statically-dispatched methods. The macros have neither limitation and are the
+on-device path. See `docs/swift-tracing.md` and the runnable
+`AppleTraceAutoExample` (`swift run AppleTraceAutoExample`).
 
 ### Instant Markers, Counters & Async Events
 
