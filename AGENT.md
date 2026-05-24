@@ -37,12 +37,15 @@ This reference is for AI agents and contributors working inside the AppleTrace r
    - Unified path: `python3 scripts/appletrace_cli.py open <path-to-appletracedata>`.
 
 ## Testing
-- Automated coverage exists for the Python trace merge pipeline:
-  - `python3 -m pytest tests`
-- Runtime and loader validation is still manual:
-  - Run the sample projects and confirm the generated `trace.json`.
-  - Inspect traces in Perfetto to ensure new instrumentation appears as expected.
-  - When touching the loader or hook code, test on a real arm64 device under LLDB.
+- Automated coverage (also run in CI on `macos-latest`, see `.github/workflows/python-tests.yml`):
+  - `python3 -m pytest tests` — Python trace merge pipeline + binary fragment format.
+  - `scripts/test_objc_msgsend_hook.sh` — builds and runs `TraceAllMsgDemo` on an iOS Simulator, asserting the `objc_msgSend` hook produces trace fragments without crashing.
+  - `scripts/test_objc_msgsend_hook_experimental.sh` — same harness with the experimental scenario, validating `super` dispatch, cross-thread events, stack-passed/floating-point arguments, and small aggregate returns.
+  - `scripts/test_batching_stress.sh` — host build of the per-thread batched writer; runs the multithreaded workload in both text and binary (`APPLETRACE_BINARY=1`) modes and asserts no events are lost or duplicated.
+  - The Simulator on Apple silicon runs the arm64 slice, so the hook ABI is exercised on a real arm64 target. The scripts assume a Python 3 with `pytest` available (e.g. a venv) on `PATH`.
+- Still manual:
+  - Instruments profiling of the batched writer (`docs/perf-batching-design.md` section 9, step 3).
+  - On-device validation of the loader / LLDB dylib-injection path on a real arm64 device.
 
 ## Linting & Formatting
 - No dedicated Objective-C lint/format pipeline exists. Follow existing Objective-C/C/C++/Python conventions in the repo (clang/Xcode defaults, 4-space indentation in Python).

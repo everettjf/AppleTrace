@@ -1,7 +1,10 @@
 # Design: Per-Thread Batched Trace Writing
 
 Status: implemented in `appletrace/appletrace/src/appletrace.mm` (Phase 2 of
-[ROADMAP.md](../ROADMAP.md)); **pending macOS build + profiling verification.**
+[ROADMAP.md](../ROADMAP.md)). **macOS build + correctness verified** (section 9
+steps 1–2): the simulator smoke tests and `scripts/test_batching_stress.sh`
+(text + binary, 200k cross-thread pairs, no loss/duplication) pass on an
+Apple-silicon host. Instruments profiling (step 3) remains pending.
 This document is the design of record; section 9 is the verification plan.
 
 ## 1. Problem
@@ -233,13 +236,14 @@ this:
 
 ## 9. Verification plan (macOS)
 
-1. Build the framework and run `scripts/test_objc_msgsend_hook.sh` and
-   `scripts/test_objc_msgsend_hook_experimental.sh` — output must match today's.
-2. Run `scripts/test_batching_stress.sh`: it builds `appletrace.mm` +
+1. **[done]** Build the framework and run `scripts/test_objc_msgsend_hook.sh`
+   and `scripts/test_objc_msgsend_hook_experimental.sh` — output must match
+   today's.
+2. **[done]** Run `scripts/test_batching_stress.sh`: it builds `appletrace.mm` +
    `tests/stress/stress_main.mm` for the host, emits N threads × M begin/end
    pairs (worker threads exit before the flush to exercise the drain path), and
    asserts the merged trace contains exactly N×M `stress` complete events — no
    loss, no duplication. Run it a few times; concurrency bugs are intermittent.
-3. Profile `TraceAllMsgDemo` with Instruments before/after; compare wall-clock
+3. **[pending]** Profile `TraceAllMsgDemo` with Instruments before/after; compare wall-clock
    overhead and peak queue memory. Target: large reduction in `dispatch_async`
    count and per-event allocations.
