@@ -29,3 +29,13 @@ jobs:
             -destination 'generic/platform=iOS Simulator' build
           xcodebuild -scheme AppleTraceAuto \
             -destination 'generic/platform=iOS Simulator' build
+
+      - name: Build the Swift demo app for the iOS Simulator
+        # Note: -destination only, no -sdk (that would force the macro plugin
+        # onto the simulator SDK instead of the macOS host).
+        run: |
+          xcodebuild \
+            -project sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj \
+            -scheme AppleTraceSwiftDemo \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build
