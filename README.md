@@ -126,8 +126,19 @@ sh go.sh "<trace directory shown in the app>"
 On the Simulator the directory is already on your Mac. On a device, pull the
 app container first (Xcode ▸ *Window ▸ Devices and Simulators ▸ Download
 Container*, or `xcrun devicectl device copy from …`) — the app shows the full
-command. `sample/TraceAllMsgDemo` is the companion sample for the automatic
-`objc_msgSend` hook.
+command.
+
+Three samples are included:
+
+| Sample | Language | Shows |
+|--------|----------|-------|
+| `sample/ManualSectionDemo` | Objective-C | Manual `APTBeginSection` sections, counters, async, threads |
+| `sample/AppleTraceSwiftDemo` | Swift | `@Traced` / `@TraceAll` / `withSpan` macros **and** the `AppleTraceAuto` SwiftTrace auto-hook |
+| `sample/TraceAllMsgDemo` | Objective-C | Automatic `objc_msgSend` hook |
+
+The Swift demo consumes the local SwiftPM package, so open it from the repo
+root (`open sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj`) and Xcode
+resolves the `AppleTrace` / `AppleTraceAuto` products automatically.
 
 ### Mode A — Manual Instrumentation (recommended baseline)
 
@@ -264,6 +275,47 @@ void saferCppFunction() {
     // ... C++ code ...
 }
 ```
+
+### Tracing Swift (SwiftPM)
+
+The `objc_msgSend` hook can't see Swift's static / vtable / witness dispatch, so
+Swift is traced at the **source level**. Add the package
+(`https://github.com/everettjf/AppleTrace.git`) and `import AppleTrace`:
+
+```swift
+import AppleTrace
+
+// Scoped span (closes even on throw / early return):
+withSpan("loadFeed") { try? loadFeed() }
+
+// Or annotate — works for final classes, structs, and protocol methods alike,
+// because the begin/end is inserted into the body at compile time:
+@Traced
+func decodeImage() { /* ... */ }
+
+@TraceAll                 // stamps @Traced on every method with a body
+final class FeedViewModel {
+    func reload() { /* traced */ }
+    func render() { /* traced */ }
+}
+
+APTFlush()  // (or AppleTrace.flush()) before pulling the trace
+```
+
+Want zero-annotation auto-tracing of a class hierarchy? The optional
+`AppleTraceAuto` product bridges [SwiftTrace](https://github.com/johnno1962/SwiftTrace):
+
+```swift
+import AppleTraceAuto
+AppleTraceAuto.trace(aClass: FeedViewModel.self)   // entry/exit → AppleTrace
+```
+
+`AppleTraceAuto` is **Simulator / macOS only** (SwiftTrace patches
+pointer-authenticated vtable slots, unsafe on real devices — gate it with
+`#if targetEnvironment(simulator)`), and it can't see `final` /
+statically-dispatched methods. The macros have neither limitation and are the
+on-device path. See `docs/swift-tracing.md` and the runnable
+`AppleTraceAutoExample` (`swift run AppleTraceAutoExample`).
 
 ### Instant Markers, Counters & Async Events
 

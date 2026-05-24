@@ -1,0 +1,4 @@
+module CAppleTrace {
+    header "CAppleTrace.h"
+    export *
+}

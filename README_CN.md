@@ -119,8 +119,19 @@ sh go.sh "<App 中显示的 trace 目录>"
 
 模拟器上该目录就在你的 Mac 本地。真机上需先拉取 App 容器（Xcode ▸ *Window ▸
 Devices and Simulators ▸ Download Container*，或 `xcrun devicectl device
-copy from …`）——App 内会显示完整命令。`sample/TraceAllMsgDemo` 则是自动
-`objc_msgSend` hook 的配套示例。
+copy from …`）——App 内会显示完整命令。
+
+仓库内含三个示例：
+
+| 示例 | 语言 | 演示内容 |
+|------|------|---------|
+| `sample/ManualSectionDemo` | Objective-C | 手动 `APTBeginSection`、counter、async、多线程 |
+| `sample/AppleTraceSwiftDemo` | Swift | `@Traced` / `@TraceAll` / `withSpan` 宏，**以及** `AppleTraceAuto` 的 SwiftTrace 自动 hook |
+| `sample/TraceAllMsgDemo` | Objective-C | 自动 `objc_msgSend` hook |
+
+Swift demo 依赖本地 SwiftPM 包，从仓库根目录打开
+（`open sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj`），Xcode 会自动
+解析 `AppleTrace` / `AppleTraceAuto` 两个 product。
 
 ### 模式 A — 手动埋点（推荐基线）
 
@@ -255,6 +266,45 @@ void saferCppFunction() {
     // ... C++ 代码 ...
 }
 ```
+
+### 追踪 Swift 代码（SwiftPM）
+
+`objc_msgSend` hook 看不到 Swift 的静态 / vtable / witness 派发，所以 Swift 走
+**源码级埋点**。把本仓库作为 SwiftPM 依赖添加
+（`https://github.com/everettjf/AppleTrace.git`），然后 `import AppleTrace`：
+
+```swift
+import AppleTrace
+
+// 作用域 span（即使 throw / 提前返回也会闭合）：
+withSpan("loadFeed") { try? loadFeed() }
+
+// 或用宏标注——对 final 类、struct、protocol 方法都生效，
+// 因为 begin/end 是在编译期插入函数体的：
+@Traced
+func decodeImage() { /* ... */ }
+
+@TraceAll                 // 给每个有函数体的方法都自动加 @Traced
+final class FeedViewModel {
+    func reload() { /* 已追踪 */ }
+    func render() { /* 已追踪 */ }
+}
+
+APTFlush()  // （或 AppleTrace.flush()）读取 trace 前先 flush
+```
+
+想要零标注地自动追踪整个类层级？可选的 `AppleTraceAuto` product 桥接了
+[SwiftTrace](https://github.com/johnno1962/SwiftTrace)：
+
+```swift
+import AppleTraceAuto
+AppleTraceAuto.trace(aClass: FeedViewModel.self)   // 进入/退出 → AppleTrace
+```
+
+`AppleTraceAuto` **仅限模拟器 / macOS**（SwiftTrace 会改写经过指针认证的 vtable 槽，
+在真机上不安全——请用 `#if targetEnvironment(simulator)` 包起来），且看不到 `final` /
+静态派发的方法。宏没有这些限制，是真机上的首选路径。详见 `docs/swift-tracing.md`
+与可运行的 `AppleTraceAutoExample`（`swift run AppleTraceAutoExample`）。
 
 ### 瞬时标记、计数器与异步事件
 
