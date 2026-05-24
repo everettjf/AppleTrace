@@ -35,8 +35,18 @@
     });
 
     [self levelOne];
-    
+
     APTEnd;
+
+    // The trace writer batches events per thread and ships them on a size
+    // threshold, on APTFlush(), or at thread exit (see
+    // docs/perf-batching-design.md). This demo's workload is well under the
+    // threshold and the app keeps running, so flush explicitly once the
+    // launch work (including the async block above) has settled — otherwise
+    // the on-disk trace would only contain process metadata.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        APTFlush();
+    });
     return YES;
 }
 - (void)myTest{
@@ -91,6 +101,7 @@
 - (void)applicationDidEnterBackground:(UIApplication *)application {
     // Use this method to release shared resources, save user data, invalidate timers, and store enough application state information to restore your application to its current state in case it is terminated later.
     // If your application supports background execution, this method is called instead of applicationWillTerminate: when the user quits.
+    APTFlush();
 }
 
 
@@ -106,6 +117,7 @@
 
 - (void)applicationWillTerminate:(UIApplication *)application {
     // Called when the application is about to terminate. Save data if appropriate. See also applicationDidEnterBackground:.
+    APTFlush();
 }
 
 
