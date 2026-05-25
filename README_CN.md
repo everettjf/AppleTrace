@@ -11,6 +11,8 @@
 
 **轻量、可内嵌的 Objective-C 追踪器，产物可直接拖入 [Perfetto](https://ui.perfetto.dev) 分享**
 
+📖 **[阅读完整教程与使用指南 →](https://everettjf.github.io/AppleTrace/zh.html)**
+
 [English](README.md) | [中文](README_CN.md)
 
 </div>
