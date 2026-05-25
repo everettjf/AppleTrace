@@ -108,16 +108,16 @@ python3 -m pip install -r requirements.txt
 
 ### Try the Demo App (fastest way to see a trace)
 
-`sample/ManualSectionDemo` is a self-contained showcase. Open it in Xcode,
+`sample/AppleTraceSwiftDemo` is a self-contained showcase. Open it in Xcode,
 run it on a Simulator (or device), and tap **Generate Trace** — it runs a
-curated, multi-threaded workload (app-startup sections, parallel
+curated, multi-threaded workload (app-startup spans, parallel
 `ImageDecoder` / `NetworkClient` / `DatabaseWriter` threads, async download
 arcs, a 60-frame render loop with live FPS / memory counters) and writes a
 complete trace. The screen then shows the on-disk trace directory and the
 exact commands to merge and open it in Perfetto.
 
 ```bash
-open sample/ManualSectionDemo/ManualSectionDemo.xcodeproj   # then Run + tap "Generate Trace"
+open sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj   # then Run + tap "Generate Trace"
 
 # The app prints the trace directory; merge it and open Perfetto:
 python3 merge.py -d "<trace directory shown in the app>"     # → trace.json
@@ -130,13 +130,12 @@ app container first (Xcode ▸ *Window ▸ Devices and Simulators ▸ Download
 Container*, or `xcrun devicectl device copy from …`) — the app shows the full
 command.
 
-Three samples are included:
+Two samples are included:
 
 | Sample | Language | Shows |
 |--------|----------|-------|
-| `sample/ManualSectionDemo` | Objective-C | Manual `APTBeginSection` sections, counters, async, threads |
-| `sample/AppleTraceSwiftDemo` | Swift | `@Traced` / `@TraceAll` / `withSpan` macros **and** the `AppleTraceAuto` SwiftTrace auto-hook |
-| `sample/TraceAllMsgDemo` | Objective-C | Automatic `objc_msgSend` hook |
+| `sample/AppleTraceSwiftDemo` | Swift | `withSpan` + `@Traced` / `@TraceAll` macros, counters / async, **and** the `AppleTraceAuto` SwiftTrace auto-hook |
+| `sample/TraceAllMsgDemo` | Objective-C | Manual `APTBeginSection` sections **and** the automatic `objc_msgSend` hook |
 
 The Swift demo consumes the local SwiftPM package, so open it from the repo
 root (`open sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj`) and Xcode
@@ -233,8 +232,8 @@ xcodebuild -project appletrace/appletrace.xcodeproj -scheme appletrace \
 > deliberately fails to compile for arm64e. Build a plain arm64 slice.
 
 Embed the resulting `appletrace.framework` into your target (see
-`sample/ManualSectionDemo` for manual mode and `sample/TraceAllMsgDemo` for the
-auto-hook). For injecting into third-party apps, see the `loader/` project and
+`sample/TraceAllMsgDemo` for both manual sections and the auto-hook). For
+injecting into third-party apps, see the `loader/` project and
 run `loader/resign.sh` after swapping in a rebuilt framework.
 
 ---
@@ -452,8 +451,8 @@ AppleTrace/
 │   └── appletrace/src/      # Framework source + objc_msgSend hook
 ├── loader/                  # Dynamic library loader + resign.sh
 ├── sample/
-│   ├── ManualSectionDemo/   # Manual instrumentation demo
-│   └── TraceAllMsgDemo/     # Automatic objc_msgSend hook demo
+│   ├── AppleTraceSwiftDemo/ # Swift demo: macros + SwiftTrace auto-hook
+│   └── TraceAllMsgDemo/     # Objective-C demo: manual + objc_msgSend hook
 ├── scripts/                 # CLI + smoke/stress test scripts
 │   └── appletrace_cli.py    # Merge + open-in-Perfetto CLI
 ├── docs/                    # Binary format & batching design notes

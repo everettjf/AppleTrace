@@ -11,7 +11,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 ## Repository Map
 - `appletrace/` — Core framework sources (`appletrace.xcodeproj`, Objective-C runtime hooks, exported headers).
 - `loader/` — Loader/packaging project plus `resign.sh` for re-signing the embedded `appletrace.framework`.
-- `sample/ManualSectionDemo` and `sample/TraceAllMsgDemo` — Objective-C Xcode samples that show manual instrumentation and automatic `objc_msgSend` tracing.
+- `sample/TraceAllMsgDemo` — Objective-C Xcode sample showing both manual instrumentation (`APTBeginSection`) and automatic `objc_msgSend` tracing.
 - `sample/AppleTraceSwiftDemo` — Swift sample (SwiftUI) that consumes the local SwiftPM package and demonstrates both Swift routes: the `@Traced`/`@TraceAll`/`withSpan` macros and the `AppleTraceAuto` SwiftTrace bridge. Build with `-destination` only (no `-sdk`, which would force the macro plugin onto the wrong SDK).
 - `springboard/AppleTraceSpringBoard` — Additional loader project for SpringBoard-focused experiments.
 - `hookzz/` — Legacy embedded HookZz dependency (the current `objc_msgSend` hook uses a direct symbol rebind instead).
@@ -27,8 +27,8 @@ This reference is for AI agents and contributors working inside the AppleTrace r
    - Optional: `python3 -m pip install -r requirements.txt` for local test tooling.
    - Visualization is browser-based at [ui.perfetto.dev](https://ui.perfetto.dev); nothing to download.
 2. **Build instrumentation**
-   - For manual tracing, open `appletrace/appletrace.xcodeproj`, build the framework, and embed it into your target (see `sample/ManualSectionDemo`).
-   - For automatic tracing, build the dynamic library (see `sample/TraceAllMsgDemo`). This mode runs on arm64 under LLDB.
+   - For Objective-C (manual sections and/or the `objc_msgSend` hook), open `appletrace/appletrace.xcodeproj`, build the framework, and embed it into your target (see `sample/TraceAllMsgDemo`).
+   - For Swift, add the SwiftPM package and use the `@Traced`/`@TraceAll`/`withSpan` macros (see `sample/AppleTraceSwiftDemo`).
 3. **Collect data**
    - Run the instrumented app; trace segments are written to `<app sandbox>/Library/appletracedata`.
    - Pull the folder from the Simulator or device.

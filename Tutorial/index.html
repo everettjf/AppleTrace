@@ -143,7 +143,7 @@ targets: [
 ]</code></pre></div>
 
             <h3>Framework embedding (Objective-C / C / C++)</h3>
-            <p>Open <code>appletrace/appletrace.xcodeproj</code>, build the framework, and embed <code>appletrace.framework</code> into your target. See <code>sample/ManualSectionDemo</code> for a working setup.</p>
+            <p>Open <code>appletrace/appletrace.xcodeproj</code>, build the framework, and embed <code>appletrace.framework</code> into your target. See <code>sample/TraceAllMsgDemo</code> for a working setup.</p>
         </section>
 
         <!-- MANUAL -->
@@ -282,12 +282,11 @@ sh go.sh /path/to/appletracedata</code></pre></div>
         <!-- DEMOS -->
         <section id="demos">
             <h2>Demo Apps</h2>
-            <p>Three runnable samples, each a complete reference:</p>
+            <p>Two runnable samples, each a complete reference:</p>
             <table>
                 <tr><th>Sample</th><th>Language</th><th>Demonstrates</th></tr>
-                <tr><td><code>sample/ManualSectionDemo</code></td><td>Objective-C</td><td>Manual sections, counters, async, threads</td></tr>
-                <tr><td><code>sample/AppleTraceSwiftDemo</code></td><td>Swift</td><td><code>@Traced</code>/<code>@TraceAll</code>/<code>withSpan</code> + the <code>AppleTraceAuto</code> hook</td></tr>
-                <tr><td><code>sample/TraceAllMsgDemo</code></td><td>Objective-C</td><td>Automatic <code>objc_msgSend</code> hook</td></tr>
+                <tr><td><code>sample/AppleTraceSwiftDemo</code></td><td>Swift</td><td><code>withSpan</code> + <code>@Traced</code>/<code>@TraceAll</code> macros, counters/async, and the <code>AppleTraceAuto</code> hook</td></tr>
+                <tr><td><code>sample/TraceAllMsgDemo</code></td><td>Objective-C</td><td>Manual <code>APTBeginSection</code> sections and the automatic <code>objc_msgSend</code> hook</td></tr>
             </table>
             <p>Each guided app has a <strong>Generate Trace</strong> button, shows the trace directory, and prints the exact merge/Perfetto commands. The Swift demo consumes the local package, so open it from the repo so Xcode resolves the products automatically.</p>
         </section>

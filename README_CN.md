@@ -103,15 +103,15 @@ python3 -m pip install -r requirements.txt
 
 ### 体验 Demo App（最快看到一条 trace）
 
-`sample/ManualSectionDemo` 是一个开箱即用的示例。用 Xcode 打开，在模拟器
+`sample/AppleTraceSwiftDemo` 是一个开箱即用的示例。用 Xcode 打开，在模拟器
 （或真机）上运行，点击 **Generate Trace** 按钮——它会跑一段精心设计的多线程
-工作负载（App 启动 section、并行的 `ImageDecoder` / `NetworkClient` /
+工作负载（App 启动 span、并行的 `ImageDecoder` / `NetworkClient` /
 `DatabaseWriter` 线程、async 下载弧、带实时 FPS / 内存 counter 的 60 帧渲染
 循环）并写出一条完整的 trace。界面随后会显示磁盘上的 trace 目录，以及合并并在
 Perfetto 中打开它的完整命令。
 
 ```bash
-open sample/ManualSectionDemo/ManualSectionDemo.xcodeproj   # 运行后点击 "Generate Trace"
+open sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj   # 运行后点击 "Generate Trace"
 
 # App 会显示 trace 目录；合并它并打开 Perfetto：
 python3 merge.py -d "<App 中显示的 trace 目录>"               # → trace.json
@@ -123,13 +123,12 @@ sh go.sh "<App 中显示的 trace 目录>"
 Devices and Simulators ▸ Download Container*，或 `xcrun devicectl device
 copy from …`）——App 内会显示完整命令。
 
-仓库内含三个示例：
+仓库内含两个示例：
 
 | 示例 | 语言 | 演示内容 |
 |------|------|---------|
-| `sample/ManualSectionDemo` | Objective-C | 手动 `APTBeginSection`、counter、async、多线程 |
-| `sample/AppleTraceSwiftDemo` | Swift | `@Traced` / `@TraceAll` / `withSpan` 宏，**以及** `AppleTraceAuto` 的 SwiftTrace 自动 hook |
-| `sample/TraceAllMsgDemo` | Objective-C | 自动 `objc_msgSend` hook |
+| `sample/AppleTraceSwiftDemo` | Swift | `withSpan` + `@Traced` / `@TraceAll` 宏、counter / async，**以及** `AppleTraceAuto` 的 SwiftTrace 自动 hook |
+| `sample/TraceAllMsgDemo` | Objective-C | 手动 `APTBeginSection` section **以及**自动 `objc_msgSend` hook |
 
 Swift demo 依赖本地 SwiftPM 包，从仓库根目录打开
 （`open sample/AppleTraceSwiftDemo/AppleTraceSwiftDemo.xcodeproj`），Xcode 会自动
@@ -224,8 +223,8 @@ xcodebuild -project appletrace/appletrace.xcodeproj -scheme appletrace \
 > AppleTrace **仅支持 arm64**。arm64e 不在范围内：自动 hook 需要重绑定经过指针认证的
 > GOT 表项，因此 hook 源码在 arm64e 下会刻意编译失败。请构建纯 arm64 slice。
 
-把生成的 `appletrace.framework` 嵌入你的目标（手动模式见 `sample/ManualSectionDemo`，
-自动 hook 见 `sample/TraceAllMsgDemo`）。注入第三方 App 见 `loader/` 工程，替换重新
+把生成的 `appletrace.framework` 嵌入你的目标（手动 section 与自动 hook 都见
+`sample/TraceAllMsgDemo`）。注入第三方 App 见 `loader/` 工程，替换重新
 构建的 framework 后运行 `loader/resign.sh`。
 
 ---
@@ -435,8 +434,8 @@ AppleTrace/
 │   └── appletrace/src/      # framework 源码 + objc_msgSend hook
 ├── loader/                  # 动态库 loader + resign.sh
 ├── sample/
-│   ├── ManualSectionDemo/   # 手动埋点示例
-│   └── TraceAllMsgDemo/     # 自动 objc_msgSend hook 示例
+│   ├── AppleTraceSwiftDemo/ # Swift 示例：宏 + SwiftTrace 自动 hook
+│   └── TraceAllMsgDemo/     # OC 示例：手动 + objc_msgSend hook
 ├── scripts/                 # CLI + smoke/压测脚本
 │   └── appletrace_cli.py    # 合并 + 打开 Perfetto 的 CLI
 ├── docs/                    # 二进制格式与批量写入设计说明
