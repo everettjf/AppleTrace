@@ -138,7 +138,7 @@ targets: [
 ]</code></pre></div>
 
             <h3>嵌入 framework（Objective-C / C / C++）</h3>
-            <p>打开 <code>appletrace/appletrace.xcodeproj</code> 构建 framework，把 <code>appletrace.framework</code> 嵌入你的 target。可参考 <code>sample/ManualSectionDemo</code>。</p>
+            <p>打开 <code>appletrace/appletrace.xcodeproj</code> 构建 framework，把 <code>appletrace.framework</code> 嵌入你的 target。可参考 <code>sample/TraceAllMsgDemo</code>。</p>
         </section>
 
         <section id="manual">
@@ -261,9 +261,8 @@ sh go.sh /path/to/appletracedata</code></pre></div>
             <h2>示例 App</h2>
             <table>
                 <tr><th>示例</th><th>语言</th><th>演示</th></tr>
-                <tr><td><code>sample/ManualSectionDemo</code></td><td>Objective-C</td><td>手动 section、counter、async、多线程</td></tr>
-                <tr><td><code>sample/AppleTraceSwiftDemo</code></td><td>Swift</td><td><code>@Traced</code>/<code>@TraceAll</code>/<code>withSpan</code> + <code>AppleTraceAuto</code> hook</td></tr>
-                <tr><td><code>sample/TraceAllMsgDemo</code></td><td>Objective-C</td><td>自动 <code>objc_msgSend</code> hook</td></tr>
+                <tr><td><code>sample/AppleTraceSwiftDemo</code></td><td>Swift</td><td><code>withSpan</code> + <code>@Traced</code>/<code>@TraceAll</code> 宏、counter/async，以及 <code>AppleTraceAuto</code> hook</td></tr>
+                <tr><td><code>sample/TraceAllMsgDemo</code></td><td>Objective-C</td><td>手动 <code>APTBeginSection</code> section 与自动 <code>objc_msgSend</code> hook</td></tr>
             </table>
             <p>每个引导式 App 都有 <strong>Generate Trace</strong> 按钮，显示 trace 目录并打印合并/Perfetto 命令。Swift demo 依赖本地包，请从仓库内打开，让 Xcode 自动解析 product。</p>
         </section>
