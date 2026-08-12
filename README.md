@@ -559,6 +559,6 @@ AppleTrace is released under the MIT License. See [LICENSE](LICENSE) for details
 
 <div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=everettjf/AppleTrace&type=Date)](https://star-history.com/#everettjf/AppleTrace&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=everettjf/AppleTrace&type=Date)](https://star-history.dera.page/#everettjf/AppleTrace&Date)
 
 </div>
