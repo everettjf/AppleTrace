@@ -540,6 +540,6 @@ AppleTrace 基于 MIT 许可证发布，详见 [LICENSE](LICENSE)。
 
 <div align="center">
 
-[![Star History Chart](https://api.star-history.com/svg?repos=everettjf/AppleTrace&type=Date)](https://star-history.com/#everettjf/AppleTrace&Date)
+[![Star History Chart](https://star-history.dera.page/svg?repos=everettjf/AppleTrace&type=Date)](https://star-history.dera.page/#everettjf/AppleTrace&Date)
 
 </div>
