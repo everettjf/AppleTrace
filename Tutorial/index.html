@@ -88,7 +88,7 @@
                     <p>Wrap code in <code>APTBeginSection</code>/<code>APTEndSection</code> (or the Swift macros). The lowest-risk baseline; you control exactly what is timed.</p>
                 </div>
                 <div class="card">
-                    <span class="tag arm">arm64</span>
+                    <span class="tag arm">arm64 / arm64e</span>
                     <h3>objc_msgSend hook</h3>
                     <p>Automatically trace every Objective-C message send via a fishhook-style symbol rebind. Zero code changes, Objective-C only.</p>
                 </div>
@@ -222,7 +222,7 @@ AppleTraceAuto.trace(aClass: FeedViewModel.self)   // entry/exit → AppleTrace
         <!-- OBJC HOOK -->
         <section id="objc-hook">
             <h2>Tutorial · Automatic objc_msgSend Hook</h2>
-            <p>For Objective-C apps you can trace <em>every</em> message send with no manual markers. The hook is an arm64 fishhook-style symbol rebind; install it once after launch:</p>
+            <p>For Objective-C apps you can trace <em>every</em> message send with no manual markers. The hook is an arm64/arm64e fishhook-style symbol rebind; install it once after launch:</p>
             <div class="code"><div class="code-head"><span class="lang">objective-c</span><button class="copy">copy</button></div><pre><code>// e.g. early in application:didFinishLaunchingWithOptions:
 if (APTInstallObjcMsgSendHook()) {
     NSLog(@"AppleTrace: objc_msgSend hook installed");

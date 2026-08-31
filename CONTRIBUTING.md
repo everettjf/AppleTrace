@@ -6,7 +6,7 @@ set up, what we expect from changes, and how to validate them.
 ## Getting Started
 
 ```bash
-git clone https://github.com/everettjf/AppleTrace.git
+git clone https://github.com/everettjf/appletrace.git
 cd AppleTrace
 python3 -m pip install -r requirements.txt
 ```
@@ -17,7 +17,7 @@ recent Python 3 for the tooling and tests.
 ## Project Layout
 
 - `appletrace/` — core tracing framework (Objective-C/C++ runtime, public headers).
-- `appletrace/appletrace/src/objc/hook_objc_msgSend.m` — arm64 `objc_msgSend` hook.
+- `appletrace/appletrace/src/objc/hook_objc_msgSend.m` — arm64/arm64e `objc_msgSend` hook.
 - `loader/`, `springboard/` — loader/packaging projects.
 - `merge.py`, `scripts/appletrace_cli.py`, `go.sh` — tooling (merge + open in Perfetto).
 - `tests/` — Python regression tests.
@@ -28,8 +28,9 @@ See [AGENT.md](AGENT.md) for a deeper map and build/release details, and
 ## Making Changes
 
 - Keep changes scoped: don't mix instrumentation, tooling, and docs in one PR.
-- The `objc_msgSend` hook targets arm64 only — preserve that assumption
-  (arm64e and other architectures are out of scope; the hook hard-errors on arm64e).
+- The `objc_msgSend` hook targets arm64 and arm64e. Preserve the authenticated
+  GOT signing and PAC/BTI wrapper behavior, and run the arm64e device smoke test
+  after changing the hook.
 - Avoid adding work to the tracing hot path; prefer caching/interning and
   per-thread state over per-event allocation.
 - Update `README.md` / `README_CN.md` / `AGENT.md` when workflows or APIs change.
@@ -43,6 +44,9 @@ python3 -m pytest tests
 # objc_msgSend hook smoke tests (run on a Mac)
 ./scripts/test_objc_msgsend_hook.sh
 ./scripts/test_objc_msgsend_hook_experimental.sh
+
+# Real-device PAC validation (text + binary trace modes)
+DEVICE_ARCH=arm64e ./scripts/test_objc_msgsend_hook_device.sh
 
 # Verify the merge + export pipeline on real data
 python3 merge.py -d <path-to-appletracedata>

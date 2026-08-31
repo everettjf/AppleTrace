@@ -6,9 +6,9 @@
 
 ## 1. Where We Are Today
 
-- **Platform**: arm64 only. arm64e is out of scope — the auto-hook would need
-  pointer-authentication-aware GOT rebinding, so the hook source hard-errors if
-  built for arm64e.
+- **Platform**: arm64 and arm64e. The arm64e backend detects chained-fixup
+  images, signs authenticated GOT replacements with the slot-specific PAC
+  context, and uses PAC/BTI-aware wrappers. It is validated on iOS 27 hardware.
 - **Tracing backends**: manual `APTBeginSection`/`APTEndSection` markers (plus
   `APTInstant` / `APTCounter` / `APTAsyncBegin` / `APTAsyncEnd`), plus a direct
   `objc_msgSend` / `objc_msgSendSuper2` rebind
@@ -74,8 +74,8 @@ Recommended redesign:
 ### 2.5 Housekeeping
 
 - ✅ Add the `CONTRIBUTING.md` that the README references.
-- ✅ Scope the project to arm64 and document it; arm64e and x86_64 are out of
-  scope (the hook source hard-errors on arm64e).
+- ✅ Support and document arm64 and arm64e; keep x86_64 out of scope for the
+  Objective-C hook.
 
 ## 3. Competitive Comparison
 
