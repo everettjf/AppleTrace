@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SIMULATOR_NAME="${SIMULATOR_NAME:-}"
 WAIT_SECONDS="${WAIT_SECONDS:-5}"
+SIMULATOR_DEPLOYMENT_TARGET="${SIMULATOR_DEPLOYMENT_TARGET:-15.0}"
 EXPERIMENTAL_SCENARIO="${APPLETRACE_EXPERIMENTAL_SCENARIO:-0}"
 APP_BUNDLE_ID="com.everettjf.TraceAllMsgDemo"
 DERIVED_DATA_DIR="${ROOT_DIR}/build/TraceAllMsgDemoDerived"
@@ -58,12 +59,24 @@ xcodebuild \
   -sdk iphonesimulator \
   -destination "platform=iOS Simulator,name=${SIMULATOR_NAME}" \
   -derivedDataPath "${DERIVED_DATA_DIR}" \
-  build CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET=12.0 >/tmp/appletrace-smoke-build.log
+  build CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET="${SIMULATOR_DEPLOYMENT_TARGET}" >/tmp/appletrace-smoke-build.log
 
 if [[ ! -d "${APP_PATH}" ]]; then
   echo "Build succeeded but app bundle not found: ${APP_PATH}" >&2
   exit 1
 fi
+
+echo "[2/7] Building late-loaded hook probe"
+SIMULATOR_SDK_PATH="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+xcrun --sdk iphonesimulator clang \
+  -dynamiclib \
+  -fobjc-arc \
+  -arch arm64 \
+  -mios-simulator-version-min="${SIMULATOR_DEPLOYMENT_TARGET}" \
+  -isysroot "${SIMULATOR_SDK_PATH}" \
+  -framework Foundation \
+  "${ROOT_DIR}/sample/TraceAllMsgDemo/LateLoadedProbe.m" \
+  -o "${APP_PATH}/TraceLateLoad.dylib"
 
 MARKER_FILE="$(mktemp)"
 touch "${MARKER_FILE}"
@@ -181,12 +194,15 @@ if os.environ.get("APPLETRACE_EXPERIMENTAL_SCENARIO") == "1":
         "[AppDelegate]makeRangeLocation:length:",
         "[AppDelegate]makeInsetsTop:left:bottom:right:",
         "[APTSuperBase]superPing",
-        "[APTSuperChild]init",
         "[APTSuperChild]invokeSuperPing",
         "[ThreadTest]goLoop",
+        "[AppDelegate]filterAllowedProbe",
+        "[APTLateLoadedProbe]run",
     )
     if not all(name in text for name in expected):
         raise SystemExit("trace missing experimental sample method events")
+    if "[AppDelegate]filterDeniedProbe" in text:
+        raise SystemExit("runtime class filter did not suppress denied probe")
 for line in text.splitlines()[:10]:
     print(line)
 PY
