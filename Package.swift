@@ -50,6 +50,7 @@ let package = Package(
         .target(
             name: "AppleTraceServer",
             dependencies: ["AppleTrace", "AppleTraceProtocol"],
+            resources: [.copy("Resources/Console")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
 

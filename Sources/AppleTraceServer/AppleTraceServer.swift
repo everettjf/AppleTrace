@@ -91,6 +91,10 @@ public final class AppleTraceControlServer: @unchecked Sendable {
     }
 
     private func respond(to request: HTTPRequest, on connection: NWConnection) {
+        if request.method == "GET", request.path == "/" || request.path.hasPrefix("/assets/") {
+            sendConsoleAsset(path: request.path, on: connection)
+            return
+        }
         guard authorized(request) else {
             send(json: APIErrorPayload("unauthorized"), status: 401, reason: "Unauthorized", on: connection)
             return
@@ -210,6 +214,35 @@ public final class AppleTraceControlServer: @unchecked Sendable {
             headers: [
                 "Content-Type": "application/octet-stream",
                 "Content-Disposition": "attachment; filename=\"\(name.replacingOccurrences(of: "\"", with: ""))\"",
+            ],
+            body: body
+        )
+        connection.send(content: response.encoded(), completion: .contentProcessed { _ in connection.cancel() })
+    }
+
+    private func sendConsoleAsset(path: String, on connection: NWConnection) {
+        let relativePath = path == "/" ? "index.html" : String(path.dropFirst())
+        guard !relativePath.contains(".."),
+              relativePath == URL(fileURLWithPath: relativePath).relativePath,
+              let root = Bundle.module.resourceURL?.appendingPathComponent("Console", isDirectory: true),
+              let body = try? Data(contentsOf: root.appendingPathComponent(relativePath), options: [.mappedIfSafe]) else {
+            send(json: APIErrorPayload("asset not found"), status: 404, reason: "Not Found", on: connection)
+            return
+        }
+        let contentType: String
+        switch URL(fileURLWithPath: relativePath).pathExtension.lowercased() {
+        case "html": contentType = "text/html; charset=utf-8"
+        case "css": contentType = "text/css; charset=utf-8"
+        case "js": contentType = "text/javascript; charset=utf-8"
+        case "svg": contentType = "image/svg+xml"
+        default: contentType = "application/octet-stream"
+        }
+        let response = HTTPResponse(
+            status: 200,
+            reason: "OK",
+            headers: [
+                "Content-Type": contentType,
+                "Cache-Control": relativePath == "index.html" ? "no-cache" : "public, max-age=31536000, immutable",
             ],
             body: body
         )

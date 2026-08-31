@@ -48,6 +48,11 @@ final class ProtocolServerTests: XCTestCase {
         let readyPort = try XCTUnwrap(port)
         let url = try XCTUnwrap(URL(string: "http://127.0.0.1:\(readyPort)/api/v1/status"))
 
+        let rootURL = try XCTUnwrap(URL(string: "http://127.0.0.1:\(readyPort)/"))
+        let (consoleBody, consoleResponse) = try await URLSession.shared.data(from: rootURL)
+        XCTAssertEqual((consoleResponse as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertTrue(String(decoding: consoleBody, as: UTF8.self).contains("AppleTrace"))
+
         let (unauthorizedBody, unauthorizedResponse) = try await URLSession.shared.data(from: url)
         XCTAssertEqual((unauthorizedResponse as? HTTPURLResponse)?.statusCode, 401)
         XCTAssertTrue(String(decoding: unauthorizedBody, as: UTF8.self).contains("unauthorized"))

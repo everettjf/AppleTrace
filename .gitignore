@@ -18,3 +18,8 @@ __pycache__/
 # SwiftPM
 .build/
 .swiftpm/
+
+# Web Console
+Web/console/node_modules/
+Web/console/dist/
+Web/console/*.tsbuildinfo
