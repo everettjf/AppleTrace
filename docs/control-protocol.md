@@ -10,6 +10,9 @@ loading.
 - Embedded mode listens on loopback by default.
 - Every HTTP and WebSocket request carries either
   `Authorization: Bearer <token>` or `X-AppleTrace-Token: <token>`.
+- Browser WebSocket clients, which cannot set arbitrary request headers, send
+  `appletrace-token.<token>` alongside the `appletrace-v1` subprotocol. The
+  server selects only `appletrace-v1`, so the credential is not echoed.
 - The default token is 128 random bits encoded as lowercase hexadecimal.
 - LAN binding is opt-in and should be paired with a device-local approval flow
   before it is exposed by a host app.
@@ -39,10 +42,12 @@ inside `APTGetTraceDirectory()`.
 
 ## WebSocket
 
-`GET /api/v1/stream` with a WebSocket upgrade returns an initial status frame.
-Protocol v1 intentionally does not stream every method call: full-rate events
-remain in AppleTrace's binary batching path. Later revisions may add bounded
-metric updates and binary trace batches without changing the HTTP resources.
+`GET /api/v1/stream` with a WebSocket upgrade returns an initial status frame
+and then one bounded status update per second. The connection supports standard
+ping/pong and close frames. Protocol v1 intentionally does not stream every
+method call: full-rate events remain in AppleTrace's binary batching path.
+Later revisions may add binary trace batches without changing the HTTP
+resources.
 
 ## Versioning
 

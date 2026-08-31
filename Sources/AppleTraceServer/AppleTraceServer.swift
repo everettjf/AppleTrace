@@ -36,6 +36,7 @@ public final class AppleTraceControlServer: @unchecked Sendable {
 
     private let queue = DispatchQueue(label: "com.everettjf.appletrace.server")
     private var listener: NWListener?
+    private var webSocketSessions: [UUID: WebSocketSession] = [:]
 
     public init(configuration: AppleTraceServerConfiguration = .init()) {
         self.configuration = configuration
@@ -67,6 +68,9 @@ public final class AppleTraceControlServer: @unchecked Sendable {
     public func stop() {
         listener?.cancel()
         listener = nil
+        let sessions = Array(webSocketSessions.values)
+        webSocketSessions.removeAll()
+        sessions.forEach { $0.cancel() }
         listeningPort = nil
     }
 
@@ -103,7 +107,10 @@ public final class AppleTraceControlServer: @unchecked Sendable {
         if request.path == "/api/v1/stream",
            request.headers["upgrade"]?.lowercased() == "websocket",
            let key = request.headers["sec-websocket-key"] {
-            upgradeWebSocket(key: key, on: connection)
+            let protocols = request.headers["sec-websocket-protocol"]?
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) } ?? []
+            upgradeWebSocket(key: key, protocol: protocols.contains("appletrace-v1") ? "appletrace-v1" : nil, on: connection)
             return
         }
 
@@ -136,8 +143,14 @@ public final class AppleTraceControlServer: @unchecked Sendable {
     }
 
     private func authorized(_ request: HTTPRequest) -> Bool {
-        request.headers["authorization"] == "Bearer \(configuration.token)" ||
-            request.headers["x-appletrace-token"] == configuration.token
+        if request.headers["authorization"] == "Bearer \(configuration.token)" ||
+            request.headers["x-appletrace-token"] == configuration.token {
+            return true
+        }
+        let protocols = request.headers["sec-websocket-protocol"]?
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) } ?? []
+        return protocols.contains("appletrace-token.\(configuration.token)")
     }
 
     private func statusPayload() -> AgentStatusPayload {
@@ -270,41 +283,35 @@ public final class AppleTraceControlServer: @unchecked Sendable {
         connection.send(content: response.encoded(), completion: .contentProcessed { _ in connection.cancel() })
     }
 
-    private func upgradeWebSocket(key: String, on connection: NWConnection) {
+    private func upgradeWebSocket(key: String, protocol selectedProtocol: String?, on connection: NWConnection) {
         let source = Data((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").utf8)
         let accept = Data(Insecure.SHA1.hash(data: source)).base64EncodedString()
+        var headers = [
+            "Connection": "Upgrade",
+            "Upgrade": "websocket",
+            "Sec-WebSocket-Accept": accept,
+        ]
+        if let selectedProtocol { headers["Sec-WebSocket-Protocol"] = selectedProtocol }
         let response = HTTPResponse(
             status: 101,
             reason: "Switching Protocols",
-            headers: [
-                "Connection": "Upgrade",
-                "Upgrade": "websocket",
-                "Sec-WebSocket-Accept": accept,
-            ]
+            headers: headers
         )
-        var bytes = response.encoded()
-        let encoder = JSONEncoder()
-        if let payload = try? encoder.encode(statusPayload()) {
-            bytes.append(Self.webSocketTextFrame(payload))
-        }
-        connection.send(content: bytes, completion: .contentProcessed { _ in connection.cancel() })
-    }
-
-    private static func webSocketTextFrame(_ payload: Data) -> Data {
-        var frame = Data([0x81])
-        if payload.count < 126 {
-            frame.append(UInt8(payload.count))
-        } else if payload.count <= Int(UInt16.max) {
-            frame.append(126)
-            var length = UInt16(payload.count).bigEndian
-            withUnsafeBytes(of: &length) { frame.append(contentsOf: $0) }
-        } else {
-            frame.append(127)
-            var length = UInt64(payload.count).bigEndian
-            withUnsafeBytes(of: &length) { frame.append(contentsOf: $0) }
-        }
-        frame.append(payload)
-        return frame
+        let identifier = UUID()
+        let session = WebSocketSession(
+            connection: connection,
+            queue: queue,
+            statusProvider: { [weak self] in self?.statusPayload() },
+            onClose: { [weak self] in self?.webSocketSessions.removeValue(forKey: identifier) }
+        )
+        webSocketSessions[identifier] = session
+        connection.send(content: response.encoded(), completion: .contentProcessed { error in
+            if error == nil {
+                session.start()
+            } else {
+                session.cancel()
+            }
+        })
     }
 
     private static var architecture: String {
@@ -315,5 +322,91 @@ public final class AppleTraceControlServer: @unchecked Sendable {
 #else
         return "unknown"
 #endif
+    }
+}
+
+private final class WebSocketSession {
+    private let connection: NWConnection
+    private let queue: DispatchQueue
+    private let statusProvider: () -> AgentStatusPayload?
+    private let onClose: () -> Void
+    private var timer: DispatchSourceTimer?
+    private var receiveBuffer = Data()
+    private var closed = false
+
+    init(
+        connection: NWConnection,
+        queue: DispatchQueue,
+        statusProvider: @escaping () -> AgentStatusPayload?,
+        onClose: @escaping () -> Void
+    ) {
+        self.connection = connection
+        self.queue = queue
+        self.statusProvider = statusProvider
+        self.onClose = onClose
+    }
+
+    func start() {
+        sendStatus()
+        receive()
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + 1, repeating: 1, leeway: .milliseconds(100))
+        timer.setEventHandler { [weak self] in self?.sendStatus() }
+        self.timer = timer
+        timer.resume()
+    }
+
+    func cancel() {
+        guard !closed else { return }
+        closed = true
+        timer?.cancel()
+        timer = nil
+        connection.cancel()
+        onClose()
+    }
+
+    private func sendStatus() {
+        guard let status = statusProvider(),
+              let payload = try? JSONEncoder().encode(status) else { return }
+        send(WebSocketFrameCodec.encode(opcode: .text, payload: payload))
+    }
+
+    private func send(_ data: Data, then completion: (() -> Void)? = nil) {
+        connection.send(content: data, completion: .contentProcessed { [weak self] error in
+            guard let self else { return }
+            if error != nil { self.cancel() } else { completion?() }
+        })
+    }
+
+    private func receive() {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, complete, error in
+            guard let self else { return }
+            if let data { self.receiveBuffer.append(data) }
+            guard let decoded = WebSocketFrameCodec.decode(self.receiveBuffer) else {
+                self.send(WebSocketFrameCodec.encode(opcode: .close)) { self.cancel() }
+                return
+            }
+            self.receiveBuffer = decoded.remainder
+            for frame in decoded.frames {
+                guard frame.masked else {
+                    self.send(WebSocketFrameCodec.encode(opcode: .close)) { self.cancel() }
+                    return
+                }
+                switch frame.opcode {
+                case .ping:
+                    self.send(WebSocketFrameCodec.encode(opcode: .pong, payload: frame.payload))
+                case .close:
+                    self.send(WebSocketFrameCodec.encode(opcode: .close, payload: frame.payload)) { self.cancel() }
+                    return
+                default:
+                    break
+                }
+            }
+            if complete || error != nil {
+                self.cancel()
+            } else {
+                self.receive()
+            }
+        }
     }
 }

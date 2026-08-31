@@ -62,6 +62,12 @@ export class AppleTraceAPI {
     return this.request<Filters>("/api/v1/filters", { method: "POST", body: JSON.stringify(filters) });
   }
 
+  statusStream(): WebSocket {
+    const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const url = `${scheme}//${window.location.host}/api/v1/stream`;
+    return new WebSocket(url, ["appletrace-v1", `appletrace-token.${this.token}`]);
+  }
+
   async download(name: string) {
     const response = await fetch(`/api/v1/artifacts/${encodeURIComponent(name)}`, {
       headers: { "Authorization": `Bearer ${this.token}` },

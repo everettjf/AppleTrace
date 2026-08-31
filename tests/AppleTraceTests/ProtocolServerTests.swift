@@ -23,6 +23,25 @@ final class ProtocolServerTests: XCTestCase {
         XCTAssertEqual(request.body, Data("{}".utf8))
     }
 
+    func testWebSocketFrameCodecHandlesMaskedAndPartialFrames() throws {
+        let payload = Data("ping".utf8)
+        let mask: [UInt8] = [1, 2, 3, 4]
+        var frame = Data([0x89, 0x80 | UInt8(payload.count)])
+        frame.append(contentsOf: mask)
+        frame.append(contentsOf: payload.enumerated().map { $0.element ^ mask[$0.offset % 4] })
+
+        let partial = try XCTUnwrap(WebSocketFrameCodec.decode(frame.dropLast()))
+        XCTAssertTrue(partial.frames.isEmpty)
+        XCTAssertEqual(partial.remainder, frame.dropLast())
+
+        let decoded = try XCTUnwrap(WebSocketFrameCodec.decode(frame))
+        XCTAssertEqual(decoded.frames.count, 1)
+        XCTAssertEqual(decoded.frames[0].opcode, .ping)
+        XCTAssertTrue(decoded.frames[0].masked)
+        XCTAssertEqual(decoded.frames[0].payload, payload)
+        XCTAssertTrue(decoded.remainder.isEmpty)
+    }
+
     func testConfigurationGeneratesStrongToken() {
         let first = AppleTraceServerConfiguration()
         let second = AppleTraceServerConfiguration()
@@ -81,5 +100,54 @@ final class ProtocolServerTests: XCTestCase {
         traversalRequest.setValue("Bearer test-token", forHTTPHeaderField: "Authorization")
         let (_, traversalResponse) = try await URLSession.shared.data(for: traversalRequest)
         XCTAssertEqual((traversalResponse as? HTTPURLResponse)?.statusCode, 400)
+    }
+
+    func testWebSocketStreamsStatusAndRespondsToPing() async throws {
+        let configuration = AppleTraceServerConfiguration(token: "stream-token")
+        let server = AppleTraceControlServer(configuration: configuration)
+        try server.start()
+        defer { server.stop() }
+
+        var port: UInt16?
+        for _ in 0..<100 {
+            if let readyPort = server.listeningPort {
+                port = readyPort
+                break
+            }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        let readyPort = try XCTUnwrap(port)
+        let url = try XCTUnwrap(URL(string: "ws://127.0.0.1:\(readyPort)/api/v1/stream"))
+        let task = URLSession.shared.webSocketTask(
+            with: url,
+            protocols: ["appletrace-v1", "appletrace-token.stream-token"]
+        )
+        task.resume()
+        defer { task.cancel(with: .normalClosure, reason: nil) }
+
+        let first = try await task.receive()
+        let firstStatus = try decodeStatus(from: first)
+        XCTAssertEqual(firstStatus.protocolVersion, AppleTraceProtocolVersion.current)
+
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            task.sendPing { error in
+                if let error { continuation.resume(throwing: error) }
+                else { continuation.resume() }
+            }
+        }
+
+        let second = try await task.receive()
+        let secondStatus = try decodeStatus(from: second)
+        XCTAssertEqual(secondStatus.processId, firstStatus.processId)
+    }
+
+    private func decodeStatus(from message: URLSessionWebSocketTask.Message) throws -> AgentStatusPayload {
+        let data: Data
+        switch message {
+        case .data(let value): data = value
+        case .string(let value): data = Data(value.utf8)
+        @unknown default: throw CocoaError(.coderInvalidValue)
+        }
+        return try JSONDecoder().decode(AgentStatusPayload.self, from: data)
     }
 }

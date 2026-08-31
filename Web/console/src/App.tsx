@@ -29,8 +29,41 @@ export default function App() {
 
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => void refresh(), 1500);
-    return () => window.clearInterval(timer);
+    let stream: WebSocket | undefined;
+    let reconnectTimer: number | undefined;
+    let disposed = false;
+
+    const connect = () => {
+      stream = api.statusStream();
+      stream.onopen = () => setError("");
+      stream.onmessage = (event) => {
+        try {
+          setStatus(JSON.parse(String(event.data)) as AgentStatus);
+          setError("");
+        } catch (caught) {
+          console.debug("AppleTrace stream payload failed", caught);
+        }
+      };
+      stream.onerror = () => setError("Disconnected");
+      stream.onclose = () => {
+        if (!disposed) {
+          setError("Disconnected");
+          reconnectTimer = window.setTimeout(connect, 1500);
+        }
+      };
+    };
+    connect();
+
+    const artifactTimer = window.setInterval(async () => {
+      try { setArtifacts(await api.artifacts()); }
+      catch { /* status stream owns the connection indicator */ }
+    }, 5000);
+    return () => {
+      disposed = true;
+      stream?.close();
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      window.clearInterval(artifactTimer);
+    };
   }, [refresh]);
 
   async function command(action: "start" | "stop") {
