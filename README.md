@@ -455,10 +455,12 @@ across threads, flushes, and thread exits.
 AppleTrace/
 ├── appletrace/              # Core tracing framework (appletrace.xcodeproj)
 │   └── appletrace/src/      # Framework source + objc_msgSend hook
-├── loader/                  # Dynamic library loader + resign.sh
+├── loader/                  # Legacy pre-modern-jailbreak loader
 ├── sample/
 │   ├── AppleTraceSwiftDemo/ # Swift demo: macros + SwiftTrace auto-hook
 │   └── TraceAllMsgDemo/     # Objective-C demo: manual + objc_msgSend hook
+├── Web/console/              # React control console (embedded in the server)
+├── Jailbreak/                # Theos tweak + appletraced local daemon
 ├── scripts/                 # CLI + smoke/stress test scripts
 │   └── appletrace_cli.py    # Merge + open-in-Perfetto CLI
 ├── docs/                    # Binary format & batching design notes
@@ -469,6 +471,18 @@ AppleTrace/
 ├── go.sh                    # Merge and open Perfetto
 └── requirements.txt         # Python dev/test dependencies
 ```
+
+### Local control server
+
+`AppleTraceServer` provides an opt-in, token-authenticated loopback HTTP and
+WebSocket server for apps that embed AppleTrace. It can start/stop captures,
+update filters, report metrics, and download trace fragments through the
+included Web Console. It never starts automatically.
+
+The `Jailbreak/` package uses a bundle allowlist and a Substrate-compatible
+injector supplied by the device environment. Injected apps connect outward to
+the local `appletraced` Unix socket and do not open TCP ports. See
+[`Jailbreak/README.md`](Jailbreak/README.md).
 
 ---
 
@@ -485,8 +499,10 @@ arm64 and arm64e — see
 [Platform & Hook Support](#-platform--hook-support).
 
 **Can I trace third-party apps?**
-Yes — see the loader project and this Chinese guide:
-[搭载 MonkeyDev 可 trace 第三方 App](http://everettjf.github.io/2017/10/12/appletrace-dancewith-monkeydev/).
+Only in an authorized environment. A normal non-jailbroken build must embed and
+sign AppleTrace with the app. The `Jailbreak/` package can load the Agent into
+allowlisted apps through the device's existing tweak injector; physical-device
+validation is still required before that path is considered production-ready.
 
 **Why is Python 3 required?**
 Python 2 reached end-of-life in 2020. The tooling requires Python 3.9+.

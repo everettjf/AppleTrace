@@ -23,3 +23,7 @@ __pycache__/
 Web/console/node_modules/
 Web/console/dist/
 Web/console/*.tsbuildinfo
+
+# Theos build output
+Jailbreak/.theos/
+Jailbreak/packages/

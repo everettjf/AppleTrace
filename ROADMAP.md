@@ -118,5 +118,17 @@ should lean into that rather than chasing Frida's full feature set.
 
 ### Phase 4 — Reach & polish
 - ✅ Add `CONTRIBUTING.md`.
-- ✅ Scope to arm64 (arm64e dropped; hook hard-errors there).
+- ✅ Support arm64 and arm64e, including authenticated GOT rebinding and
+  PAC/BTI-aware wrappers.
 - Explore an `os_signpost` backend and/or Perfetto protobuf export.
+
+### Phase 5 — Local control plane
+- ✅ Capture lifecycle and runtime metrics API.
+- ✅ Runtime class-filter replacement with generation-safe intern caching.
+- ✅ Rebind images added after installation through dyld's add-image callback.
+- ✅ Versioned loopback HTTP/WebSocket control protocol with token auth.
+- ✅ Embedded React control console and trace artifact download.
+- ✅ Theos rootless/rootful tweak package, bundle allowlist, `appletraced`, and
+  bidirectional Unix-socket Agent transport.
+- ⏳ Validate the tweak on supported jailbroken devices and injector stacks;
+  host builds cannot prove injection, sandbox, launchd, or PAC runtime behavior.

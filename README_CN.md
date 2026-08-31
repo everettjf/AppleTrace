@@ -437,10 +437,12 @@ DEVICE_ARCH=arm64e ./scripts/test_objc_msgsend_hook_device.sh
 AppleTrace/
 ├── appletrace/              # 核心追踪 framework（appletrace.xcodeproj）
 │   └── appletrace/src/      # framework 源码 + objc_msgSend hook
-├── loader/                  # 动态库 loader + resign.sh
+├── loader/                  # 旧版越狱环境 loader（保留参考）
 ├── sample/
 │   ├── AppleTraceSwiftDemo/ # Swift 示例：宏 + SwiftTrace 自动 hook
 │   └── TraceAllMsgDemo/     # OC 示例：手动 + objc_msgSend hook
+├── Web/console/              # React 控制台（作为静态资源嵌入 server）
+├── Jailbreak/                # Theos tweak + appletraced 本地 daemon
 ├── scripts/                 # CLI + smoke/压测脚本
 │   └── appletrace_cli.py    # 合并 + 打开 Perfetto 的 CLI
 ├── docs/                    # 二进制格式与批量写入设计说明
@@ -451,6 +453,16 @@ AppleTrace/
 ├── go.sh                    # 合并并打开 Perfetto
 └── requirements.txt         # Python 开发/测试依赖
 ```
+
+### 本地控制服务
+
+`AppleTraceServer` 提供按需启动、token 鉴权、默认仅监听 loopback 的 HTTP 与
+WebSocket 服务。集成 AppleTrace 的 App 可以通过内置 Web Console 开始/停止采集、
+更新过滤条件、查看指标和下载 trace；服务不会自动启动。
+
+`Jailbreak/` 包使用 bundle allowlist，并复用设备现有的 Substrate-compatible
+injector。被注入的 App 只主动连接本机 `appletraced` Unix socket，不自行监听 TCP
+端口。详见 [`Jailbreak/README.md`](Jailbreak/README.md)。
 
 ---
 
@@ -465,8 +477,9 @@ AppleTrace/
 [平台与 hook 支持](#-平台与-hook-支持)）。
 
 **能追踪第三方 App 吗？**
-可以——见 loader 工程与这篇中文教程：
-[搭载 MonkeyDev 可 trace 第三方 App](http://everettjf.github.io/2017/10/12/appletrace-dancewith-monkeydev/)。
+只能在有授权的环境中进行。非越狱设备需要把 AppleTrace 编译并签名进自己的 App；
+`Jailbreak/` 包可以借助设备已有的 tweak injector 注入 allowlist 中的 App，但该路径仍需
+完成越狱真机验证后才能作为稳定能力发布。
 
 **为什么需要 Python 3？**
 Python 2 已于 2020 年停止维护，工具链需要 Python 3.9+。
