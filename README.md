@@ -229,10 +229,10 @@ xcodebuild -project appletrace/appletrace.xcodeproj -scheme appletrace \
   -configuration Release -sdk iphoneos build
 ```
 
-> The automatic hook supports arm64 and has an experimental arm64e backend.
+> The automatic hook supports arm64 and arm64e.
 > arm64e replacements in chained-fixup `__auth_got` slots are signed using the
-> standard function-pointer PAC schema. Validate that path on a real arm64e
-> device before shipping it; the Simulator cannot exercise pointer authentication.
+> standard function-pointer PAC schema. The arm64e path is validated on an
+> iPhone 17 Pro running iOS 27; the Simulator cannot exercise pointer authentication.
 
 Embed the resulting `appletrace.framework` into your target (see
 `sample/TraceAllMsgDemo` for both manual sections and the auto-hook). For
@@ -406,7 +406,7 @@ AppleTrace targets **arm64 and arm64e**.
 | Mode | arm64 | arm64e |
 |------|:-----:|:------:|
 | Manual sections & explicit events (`APTBeginSection`, `APTInstant`, …) | ✅ | ✅ |
-| Automatic `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ | Experimental |
+| Automatic `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ | ✅ |
 
 - **Manual sections** are the lowest-risk baseline and work on every iOS/macOS
   version.
@@ -417,8 +417,8 @@ AppleTrace targets **arm64 and arm64e**.
 - The **arm64e auto-hook** detects Mach-O chained fixups and re-signs each
   `__auth_got` replacement for its storage address with the IA key and zero
   discriminator, matching the platform function-pointer ABI. The wrapper also
-  uses PAC-aware calls/returns and BTI landing pads. This path needs real-device
-  validation before production use.
+  uses PAC-aware calls/returns and BTI landing pads. It is validated end-to-end
+  on an arm64e iPhone 17 Pro running iOS 27 in both text and binary trace modes.
 
 ---
 
@@ -434,6 +434,9 @@ python3 -m pytest tests
 
 # Same smoke test on a connected arm64 device (text + binary modes)
 ./scripts/test_objc_msgsend_hook_device.sh
+
+# Force a genuine arm64e app/framework slice for PAC validation
+DEVICE_ARCH=arm64e ./scripts/test_objc_msgsend_hook_device.sh
 
 # Batched-writer concurrency stress test (host build, text + binary modes)
 ./scripts/test_batching_stress.sh
@@ -478,7 +481,7 @@ future improvements and targeted maintenance when useful.
 
 **Does AppleTrace work on recent iOS versions?**
 Manual instrumentation works on all iOS versions. The automatic hook mode targets
-arm64, with experimental arm64e support — see
+arm64 and arm64e — see
 [Platform & Hook Support](#-platform--hook-support).
 
 **Can I trace third-party apps?**

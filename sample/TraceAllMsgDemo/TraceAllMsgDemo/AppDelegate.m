@@ -15,6 +15,13 @@
 #import "ViewController.h"
 #import "ThreadTest.h"
 
+@interface APTSceneDelegate : UIResponder <UIWindowSceneDelegate>
+@property (strong, nonatomic) UIWindow *window;
+@end
+
+@implementation APTSceneDelegate
+@end
+
 @interface APTSuperBase : NSObject
 - (void)superPing;
 @end

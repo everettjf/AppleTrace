@@ -220,9 +220,9 @@ xcodebuild -project appletrace/appletrace.xcodeproj -scheme appletrace \
   -configuration Release -sdk iphoneos build
 ```
 
-> 自动 hook 支持 arm64，并提供实验性的 arm64e 后端。arm64e 后端会按照标准函数指针
+> 自动 hook 支持 arm64 与 arm64e。arm64e 后端会按照标准函数指针
 > PAC 规则重新签名 chained-fixup `__auth_got` 槽。模拟器无法验证指针认证，发布前必须在
-> arm64e 真机上验证。
+> iOS 27 的 iPhone 17 Pro arm64e 真机上完成验证。
 
 把生成的 `appletrace.framework` 嵌入你的目标（手动 section 与自动 hook 都见
 `sample/TraceAllMsgDemo`）。注入第三方 App 见 `loader/` 工程，替换重新
@@ -393,7 +393,7 @@ AppleTrace 支持 **arm64 与 arm64e**。
 | 模式 | arm64 | arm64e |
 |------|:-----:|:------:|
 | 手动 section 与显式事件（`APTBeginSection`、`APTInstant` 等） | ✅ | ✅ |
-| 自动 `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ | 实验性 |
+| 自动 `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ | ✅ |
 
 - **手动 section** 是风险最低的基线，适用于所有 iOS/macOS 版本。
 - **arm64 自动 hook** 已在 iOS 模拟器与主机压测上端到端验证——嵌套调用、`super`
@@ -401,7 +401,8 @@ AppleTrace 支持 **arm64 与 arm64e**。
   wrapper。
 - **arm64e 自动 hook** 会检测 Mach-O chained fixups，并用 IA key、零 discriminator 和
   slot 地址对每个 `__auth_got` 替换指针重新签名；wrapper 同时使用 PAC-aware 调用/返回
-  与 BTI landing pad。该路径在用于生产环境前仍需经过 arm64e 真机验证。
+  与 BTI landing pad。该路径已在 iOS 27 的 iPhone 17 Pro 上以 text、binary 两种 trace
+  模式完成端到端验证。
 
 ---
 
@@ -417,6 +418,9 @@ python3 -m pytest tests
 
 # 在已连接的 arm64 真机上运行同样的 smoke test（text + binary 两种模式）
 ./scripts/test_objc_msgsend_hook_device.sh
+
+# 强制构建真正的 arm64e App/framework slice，验证 PAC 路径
+DEVICE_ARCH=arm64e ./scripts/test_objc_msgsend_hook_device.sh
 
 # 批量写入并发压测（host 构建，text + binary 两种模式）
 ./scripts/test_batching_stress.sh
@@ -457,7 +461,7 @@ AppleTrace/
 事情更多了，后续会根据实际需要继续维护和改进。
 
 **支持较新的 iOS 版本吗？**
-手动埋点适用于所有 iOS 版本。自动 hook 模式支持 arm64，并提供实验性的 arm64e 后端（见
+手动埋点适用于所有 iOS 版本。自动 hook 模式支持 arm64 与 arm64e（见
 [平台与 hook 支持](#-平台与-hook-支持)）。
 
 **能追踪第三方 App 吗？**

@@ -4,7 +4,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 
 ## Project Overview
 - AppleTrace instruments iOS apps so you can analyze performance hotspots in [Perfetto](https://ui.perfetto.dev).
-- Developers can either add manual `APTBeginSection` / `APTEndSection` markers (plus `APTInstant` / `APTCounter` / `APTAsyncBegin` / `APTAsyncEnd` events) or hook every `objc_msgSend` via a fishhook-style direct symbol rebind (arm64, with experimental arm64e support; see `appletrace/appletrace/src/objc/hook_objc_msgSend.m`).
+- Developers can either add manual `APTBeginSection` / `APTEndSection` markers (plus `APTInstant` / `APTCounter` / `APTAsyncBegin` / `APTAsyncEnd` events) or hook every `objc_msgSend` via a fishhook-style direct symbol rebind (arm64 and arm64e; see `appletrace/appletrace/src/objc/hook_objc_msgSend.m`).
 - `merge.py` and `scripts/appletrace_cli.py` (and the helper `go.sh`) merge sandbox fragments into a `trace.json` you open directly in Perfetto. Visualization is Perfetto-only; there is no Catapult/Chrome HTML pipeline.
 - Releases bundle a loader tweaked for arm64, but the source can be rebuilt via the included Xcode projects.
 
@@ -72,7 +72,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 
 ## Rules for Making Changes
 - Keep changes scoped: avoid mixing instrumentation updates with tooling refactors or documentation tweaks.
-- Target arm64 and arm64e; x86_64 is out of scope for the Objective-C hook. Treat arm64e as experimental until it passes real-device PAC validation.
+- Target arm64 and arm64e; x86_64 is out of scope for the Objective-C hook. Keep the arm64e iOS 27 real-device PAC smoke test passing.
 - Visualization is Perfetto-only — do not reintroduce a Catapult/Chrome HTML pipeline.
 - Update README/AGENT/wiki when changing workflows, scripts, or dependencies.
 - Never remove diagnostic scripts (`merge.py`, `go.sh`) without providing replacements.

@@ -209,7 +209,7 @@ if (APTInstallObjcMsgSendHook()) {
     NSLog(@"AppleTrace: objc_msgSend hook 已安装");
 }</code></pre></div>
             <p>每次被追踪的发送会变成 <code>[类]方法</code> 的 begin/end 对。完整示例见 <code>sample/TraceAllMsgDemo</code>，其中验证了浮点参数、结构体返回与 <code>super</code> 派发的处理。</p>
-            <div class="callout warn"><span class="ic">⚠️</span><p><strong>arm64e 支持仍属实验性。</strong>后端会为 chained-fixup <code>__auth_got</code> 槽重新进行 PAC 签名；模拟器无法覆盖这条路径，发布前必须使用 arm64e 真机验证。</p></div>
+            <div class="callout"><span class="ic">✅</span><p><strong>已支持 arm64e。</strong>后端会为 chained-fixup <code>__auth_got</code> 槽重新进行 PAC 签名，并已在运行 iOS 27 的 iPhone 17 Pro 上以 text、binary 两种 trace 模式完成验证。</p></div>
         </section>
 
         <section id="events">
@@ -286,7 +286,7 @@ sh go.sh /path/to/appletracedata</code></pre></div>
                 <tr><th>模式</th><th>适用范围</th></tr>
                 <tr><td>手动 section 与事件</td><td>所有 iOS/macOS 版本，全语言</td></tr>
                 <tr><td>Swift 宏（<code>@Traced</code>/<code>@TraceAll</code>/<code>withSpan</code>）</td><td>模拟器<strong>与真机</strong></td></tr>
-                <tr><td><code>objc_msgSend</code> hook</td><td>arm64；arm64e 实验性支持</td></tr>
+                <tr><td><code>objc_msgSend</code> hook</td><td>arm64 与 arm64e</td></tr>
                 <tr><td><code>AppleTraceAuto</code>（SwiftTrace）</td><td>仅模拟器 / macOS</td></tr>
             </table>
             <h3>为什么 Swift 需要源码级追踪</h3>

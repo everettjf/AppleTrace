@@ -20,6 +20,8 @@ APP_BUNDLE_ID="com.everettjf.TraceAllMsgDemo"
 DERIVED_DATA_DIR="${ROOT_DIR}/build/TraceAllMsgDemoDevice"
 APP_PATH="${DERIVED_DATA_DIR}/Build/Products/Debug-iphoneos/TraceAllMsgDemo.app"
 WAIT_SECONDS="${WAIT_SECONDS:-8}"
+DEVICE_ARCH="${DEVICE_ARCH:-arm64}"
+DEVICE_DEPLOYMENT_TARGET="${DEVICE_DEPLOYMENT_TARGET:-15.0}"
 
 # Resolve a connected iOS device: prints "<devicectl-identifier> <hardware-udid> <name>".
 device_line="$(python3 - "${DEVICE_UDID:-}" <<'PY'
@@ -67,6 +69,9 @@ xcodebuild \
   -configuration Debug \
   -destination "platform=iOS,id=${DEVICE_UDID}" \
   -derivedDataPath "${DERIVED_DATA_DIR}" \
+  ARCHS="${DEVICE_ARCH}" \
+  VALID_ARCHS="arm64 arm64e" \
+  IPHONEOS_DEPLOYMENT_TARGET="${DEVICE_DEPLOYMENT_TARGET}" \
   -allowProvisioningUpdates \
   build >/tmp/appletrace-device-build.log 2>&1
 
@@ -75,6 +80,13 @@ if [[ ! -d "${APP_PATH}" ]]; then
   echo "See /tmp/appletrace-device-build.log" >&2
   exit 1
 fi
+
+app_archs="$(lipo -archs "${APP_PATH}/TraceAllMsgDemo")"
+if [[ " ${app_archs} " != *" ${DEVICE_ARCH} "* ]]; then
+  echo "Built app does not contain requested ${DEVICE_ARCH} slice: ${app_archs}" >&2
+  exit 1
+fi
+echo "      Built architecture: ${app_archs}"
 
 xcrun devicectl device install app --device "${DEVICE_ID}" "${APP_PATH}" >/dev/null
 
