@@ -228,7 +228,7 @@ if (APTInstallObjcMsgSendHook()) {
     NSLog(@"AppleTrace: objc_msgSend hook installed");
 }</code></pre></div>
             <p>Every traced send becomes a <code>[Class]selector</code> begin/end pair. See <code>sample/TraceAllMsgDemo</code> for a full setup, including the validated handling of floating-point arguments, struct returns, and <code>super</code> dispatch.</p>
-            <div class="callout warn"><span class="ic">⚠️</span><p><strong>arm64 only.</strong> The hook hard-errors on arm64e (its callers reach <code>objc_msgSend</code> through authenticated GOT entries). Build a plain arm64 slice.</p></div>
+            <div class="callout warn"><span class="ic">⚠️</span><p><strong>arm64e support is experimental.</strong> The backend re-signs chained-fixup <code>__auth_got</code> slots for PAC; validate it on a real arm64e device before shipping because the Simulator cannot exercise this path.</p></div>
         </section>
 
         <!-- EVENTS -->
@@ -312,7 +312,7 @@ sh go.sh /path/to/appletracedata</code></pre></div>
                 <tr><th>Mode</th><th>Where it works</th></tr>
                 <tr><td>Manual sections &amp; events</td><td>Every iOS/macOS version, all languages</td></tr>
                 <tr><td>Swift macros (<code>@Traced</code>/<code>@TraceAll</code>/<code>withSpan</code>)</td><td>Simulator <strong>and device</strong></td></tr>
-                <tr><td><code>objc_msgSend</code> hook</td><td>arm64 (not arm64e)</td></tr>
+                <tr><td><code>objc_msgSend</code> hook</td><td>arm64; experimental arm64e</td></tr>
                 <tr><td><code>AppleTraceAuto</code> (SwiftTrace)</td><td>Simulator / macOS only</td></tr>
             </table>
             <h3>Why Swift needs source-level tracing</h3>

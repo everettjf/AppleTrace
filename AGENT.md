@@ -4,7 +4,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 
 ## Project Overview
 - AppleTrace instruments iOS apps so you can analyze performance hotspots in [Perfetto](https://ui.perfetto.dev).
-- Developers can either add manual `APTBeginSection` / `APTEndSection` markers (plus `APTInstant` / `APTCounter` / `APTAsyncBegin` / `APTAsyncEnd` events) or hook every `objc_msgSend` via a fishhook-style direct symbol rebind (arm64 only; see `appletrace/appletrace/src/objc/hook_objc_msgSend.m`).
+- Developers can either add manual `APTBeginSection` / `APTEndSection` markers (plus `APTInstant` / `APTCounter` / `APTAsyncBegin` / `APTAsyncEnd` events) or hook every `objc_msgSend` via a fishhook-style direct symbol rebind (arm64, with experimental arm64e support; see `appletrace/appletrace/src/objc/hook_objc_msgSend.m`).
 - `merge.py` and `scripts/appletrace_cli.py` (and the helper `go.sh`) merge sandbox fragments into a `trace.json` you open directly in Perfetto. Visualization is Perfetto-only; there is no Catapult/Chrome HTML pipeline.
 - Releases bundle a loader tweaked for arm64, but the source can be rebuilt via the included Xcode projects.
 
@@ -14,7 +14,6 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 - `sample/TraceAllMsgDemo` — Objective-C Xcode sample showing both manual instrumentation (`APTBeginSection`) and automatic `objc_msgSend` tracing.
 - `sample/AppleTraceSwiftDemo` — Swift sample (SwiftUI) that consumes the local SwiftPM package and demonstrates both Swift routes: the `@Traced`/`@TraceAll`/`withSpan` macros and the `AppleTraceAuto` SwiftTrace bridge. Build with `-destination` only (no `-sdk`, which would force the macro plugin onto the wrong SDK).
 - `springboard/AppleTraceSpringBoard` — Additional loader project for SpringBoard-focused experiments.
-- `hookzz/` — Legacy embedded HookZz dependency (the current `objc_msgSend` hook uses a direct symbol rebind instead).
 - `go.sh`, `merge.py`, `scripts/appletrace_cli.py` — Scripts for merging trace fragments into `trace.json` and opening Perfetto.
 - `sampledata/` — Ready-made trace (`trace.json`) for verifying the visualization pipeline in Perfetto.
 - `release/` — Notes and artifacts for the prebuilt loader (arm64).
@@ -73,7 +72,7 @@ This reference is for AI agents and contributors working inside the AppleTrace r
 
 ## Rules for Making Changes
 - Keep changes scoped: avoid mixing instrumentation updates with tooling refactors or documentation tweaks.
-- Target arm64 only; other architectures (arm64e, x86_64) are out of scope. The `objc_msgSend` hook hard-errors if built for arm64e.
+- Target arm64 and arm64e; x86_64 is out of scope for the Objective-C hook. Treat arm64e as experimental until it passes real-device PAC validation.
 - Visualization is Perfetto-only — do not reintroduce a Catapult/Chrome HTML pipeline.
 - Update README/AGENT/wiki when changing workflows, scripts, or dependencies.
 - Never remove diagnostic scripts (`merge.py`, `go.sh`) without providing replacements.

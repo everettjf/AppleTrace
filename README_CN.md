@@ -215,13 +215,14 @@ sh go.sh /path/to/appletracedata
 在仓库根目录执行：
 
 ```bash
-# iOS 真机（arm64）
+# iOS 真机（arm64；arm64e 验证构建可额外传入 ARCHS=arm64e）
 xcodebuild -project appletrace/appletrace.xcodeproj -scheme appletrace \
   -configuration Release -sdk iphoneos build
 ```
 
-> AppleTrace **仅支持 arm64**。arm64e 不在范围内：自动 hook 需要重绑定经过指针认证的
-> GOT 表项，因此 hook 源码在 arm64e 下会刻意编译失败。请构建纯 arm64 slice。
+> 自动 hook 支持 arm64，并提供实验性的 arm64e 后端。arm64e 后端会按照标准函数指针
+> PAC 规则重新签名 chained-fixup `__auth_got` 槽。模拟器无法验证指针认证，发布前必须在
+> arm64e 真机上验证。
 
 把生成的 `appletrace.framework` 嵌入你的目标（手动 section 与自动 hook 都见
 `sample/TraceAllMsgDemo`）。注入第三方 App 见 `loader/` 工程，替换重新
@@ -387,20 +388,20 @@ sh go.sh /path/to/appletracedata
 
 ## 🧩 平台与 hook 支持
 
-AppleTrace **仅支持 arm64**。
+AppleTrace 支持 **arm64 与 arm64e**。
 
-| 模式 | arm64 |
-|------|:-----:|
-| 手动 section 与显式事件（`APTBeginSection`、`APTInstant` 等） | ✅ |
-| 自动 `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ |
+| 模式 | arm64 | arm64e |
+|------|:-----:|:------:|
+| 手动 section 与显式事件（`APTBeginSection`、`APTInstant` 等） | ✅ | ✅ |
+| 自动 `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ | 实验性 |
 
 - **手动 section** 是风险最低的基线，适用于所有 iOS/macOS 版本。
 - **arm64 自动 hook** 已在 iOS 模拟器与主机压测上端到端验证——嵌套调用、`super`
   派发、跨线程事件、10 参数调用、浮点/小型聚合返回值等 ABI 场景都能安全穿过追踪
   wrapper。
-- **不支持 arm64e**：arm64e 的调用方通过认证 GOT 表项（`__DATA_CONST.__auth_got`）
-  到达 `objc_msgSend`，重绑定需要用正确的指针认证（PAC）上下文重签名指针。为避免
-  发布未经验证的 hook，hook 源码在 arm64e 下会直接编译报错——请改用纯 arm64 slice。
+- **arm64e 自动 hook** 会检测 Mach-O chained fixups，并用 IA key、零 discriminator 和
+  slot 地址对每个 `__auth_got` 替换指针重新签名；wrapper 同时使用 PAC-aware 调用/返回
+  与 BTI landing pad。该路径在用于生产环境前仍需经过 arm64e 真机验证。
 
 ---
 
@@ -456,7 +457,7 @@ AppleTrace/
 事情更多了，后续会根据实际需要继续维护和改进。
 
 **支持较新的 iOS 版本吗？**
-手动埋点适用于所有 iOS 版本。自动 hook 模式仅面向 arm64（arm64e 不在范围内——见
+手动埋点适用于所有 iOS 版本。自动 hook 模式支持 arm64，并提供实验性的 arm64e 后端（见
 [平台与 hook 支持](#-平台与-hook-支持)）。
 
 **能追踪第三方 App 吗？**

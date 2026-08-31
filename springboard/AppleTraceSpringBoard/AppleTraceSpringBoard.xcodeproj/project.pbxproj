@@ -11,25 +11,7 @@
 		D1CC5A782185E62E00726C5E /* appletrace.mm in Sources */ = {isa = PBXBuildFile; fileRef = D1CC5A742185E62E00726C5E /* appletrace.mm */; };
 		D1CC5A792185E62E00726C5E /* appletrace.h in Headers */ = {isa = PBXBuildFile; fileRef = D1CC5A752185E62E00726C5E /* appletrace.h */; };
 		D1CC5A7A2185E62E00726C5E /* hook_objc_msgSend.m in Sources */ = {isa = PBXBuildFile; fileRef = D1CC5A772185E62E00726C5E /* hook_objc_msgSend.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
-		D1CC5A7E2185EA4E00726C5E /* HookZz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D1CC5A722185E61D00726C5E /* HookZz.framework */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		D1CC5A712185E61D00726C5E /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */;
-			proxyType = 2;
-			remoteGlobalIDString = 865F5FD01F6123390000622F;
-			remoteInfo = HookZz;
-		};
-		D1CC5A7C2185E6C700726C5E /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */;
-			proxyType = 1;
-			remoteGlobalIDString = 865F5FCF1F6123390000622F;
-			remoteInfo = HookZz;
-		};
-/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		D1CC5A492185E5B000726C5E /* AppleTraceSpringBoard.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = AppleTraceSpringBoard.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -40,7 +22,6 @@
 		D1CC5A572185E5B000726C5E /* AppleTraceSpringBoardIcon@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; name = "AppleTraceSpringBoardIcon@2x.png"; path = "Package/Library/PreferenceLoader/Preferences/AppleTraceSpringBoardIcon@2x.png"; sourceTree = "<group>"; };
 		D1CC5A592185E5B000726C5E /* AppleTraceSpringBoard-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "AppleTraceSpringBoard-Prefix.pch"; sourceTree = "<group>"; };
 		D1CC5A5E2185E5B000726C5E /* AppleTraceSpringBoard.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = AppleTraceSpringBoard.plist; path = Package/Library/MobileSubstrate/DynamicLibraries/AppleTraceSpringBoard.plist; sourceTree = "<group>"; };
-		D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = HookZz.xcodeproj; path = ../../../hookzz/ios/HookZz.xcodeproj; sourceTree = "<group>"; };
 		D1CC5A742185E62E00726C5E /* appletrace.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = appletrace.mm; sourceTree = "<group>"; };
 		D1CC5A752185E62E00726C5E /* appletrace.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = appletrace.h; sourceTree = "<group>"; };
 		D1CC5A772185E62E00726C5E /* hook_objc_msgSend.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = hook_objc_msgSend.m; sourceTree = "<group>"; };
@@ -51,7 +32,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D1CC5A7E2185EA4E00726C5E /* HookZz.framework in Frameworks */,
 				D1CC5A4D2185E5B000726C5E /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -87,7 +67,6 @@
 		D1CC5A4E2185E5B000726C5E /* AppleTraceSpringBoard */ = {
 			isa = PBXGroup;
 			children = (
-				D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */,
 				D1CC5A732185E62E00726C5E /* src */,
 				D1CC5A4F2185E5B000726C5E /* Package */,
 				D1CC5A582185E5B000726C5E /* Supporting Files */,
@@ -163,14 +142,6 @@
 			name = DynamicLibraries;
 			sourceTree = "<group>";
 		};
-		D1CC5A6E2185E61D00726C5E /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				D1CC5A722185E61D00726C5E /* HookZz.framework */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
 		D1CC5A732185E62E00726C5E /* src */ = {
 			isa = PBXGroup;
 			children = (
@@ -216,7 +187,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				D1CC5A7D2185E6C700726C5E /* PBXTargetDependency */,
 			);
 			name = AppleTraceSpringBoard;
 			productName = AppleTraceSpringBoard;
@@ -246,28 +216,12 @@
 			mainGroup = D1CC5A3F2185E5B000726C5E;
 			productRefGroup = D1CC5A4A2185E5B000726C5E /* Products */;
 			projectDirPath = "";
-			projectReferences = (
-				{
-					ProductGroup = D1CC5A6E2185E61D00726C5E /* Products */;
-					ProjectRef = D1CC5A6D2185E61D00726C5E /* HookZz.xcodeproj */;
-				},
-			);
 			projectRoot = "";
 			targets = (
 				D1CC5A482185E5B000726C5E /* AppleTraceSpringBoard */,
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXReferenceProxy section */
-		D1CC5A722185E61D00726C5E /* HookZz.framework */ = {
-			isa = PBXReferenceProxy;
-			fileType = wrapper.framework;
-			path = HookZz.framework;
-			remoteRef = D1CC5A712185E61D00726C5E /* PBXContainerItemProxy */;
-			sourceTree = BUILT_PRODUCTS_DIR;
-		};
-/* End PBXReferenceProxy section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		D1CC5A472185E5B000726C5E /* ShellScript */ = {
@@ -300,14 +254,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		D1CC5A7D2185E6C700726C5E /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = HookZz;
-			targetProxy = D1CC5A7C2185E6C700726C5E /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		D1CC5A5F2185E5B000726C5E /* Release */ = {

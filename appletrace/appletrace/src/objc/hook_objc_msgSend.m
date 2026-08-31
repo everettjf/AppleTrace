@@ -1,16 +1,15 @@
 /**
- * AppleTrace objc_msgSend tracing without HookZz.
+ * AppleTrace objc_msgSend tracing runtime.
  *
- * Targets arm64 only. It uses fishhook-style symbol rebinding plus an assembly
+ * Targets arm64 and arm64e. It uses fishhook-style symbol rebinding plus an assembly
  * wrapper so objc_msgSend arguments and return registers survive the tracing
  * callbacks.
  *
- * arm64e is intentionally not supported: callers there branch to objc_msgSend
- * through authenticated GOT entries (`__DATA_CONST.__auth_got`), and rebinding
- * those safely requires re-signing pointers with the correct pointer-
- * authentication context. Rather than ship an unvalidated auto-hook, building
- * this file for arm64e is a hard error (see the guard below). Use a plain arm64
- * slice for automatic tracing.
+ * On arm64e, authenticated GOT entries use the standard function-pointer
+ * schema: IA key, storage-address diversity, and discriminator zero. Replacement
+ * pointers are stripped and re-signed for each slot before they are installed.
+ * The implementation is intentionally local and MIT-licensed; it does not copy
+ * code from Frida Gum or another hooking library.
  */
 
 #import <Foundation/Foundation.h>
@@ -29,14 +28,18 @@
 #import <string.h>
 #import <sys/mman.h>
 
+#if __has_feature(ptrauth_calls)
+#import <ptrauth.h>
+#endif
+
+#ifndef LC_DYLD_CHAINED_FIXUPS
+#define LC_DYLD_CHAINED_FIXUPS 0x80000034
+#endif
+
 #import "appletrace.h"
 
 #if !defined(__arm64__)
 #error AppleTrace objc_msgSend hook requires arm64.
-#endif
-
-#if defined(__arm64e__)
-#error AppleTrace objc_msgSend hook does not support arm64e; build a plain arm64 slice.
 #endif
 
 typedef void (*APTObjcMsgSendFunction)(void);
@@ -117,6 +120,16 @@ static int apt_rebind_symbols(struct APTRebinding rebindings[], size_t count);
 extern void apt_objc_msgSend_wrapper(void);
 extern void apt_objc_msgSendSuper2_wrapper(void);
 
+#if __has_feature(ptrauth_calls)
+#define APT_ASM_ENTRY "bti c\n" "paciasp\n"
+#define APT_ASM_CALL_ORIGINAL "blraaz x16\n"
+#define APT_ASM_RETURN "autiasp\n"
+#else
+#define APT_ASM_ENTRY
+#define APT_ASM_CALL_ORIGINAL "blr x16\n"
+#define APT_ASM_RETURN
+#endif
+
 static BOOL apt_bool_from_environment(NSString *key, BOOL fallback) {
     NSString *value = [[[NSProcessInfo processInfo] environment] objectForKey:key];
     if (!value.length) {
@@ -168,6 +181,7 @@ __asm__(
 ".align 2\n"
 ".globl _apt_objc_msgSend_wrapper\n"
 "_apt_objc_msgSend_wrapper:\n"
+APT_ASM_ENTRY
 "sub sp, sp, #0x1C0\n"
 "stp x29, x30, [sp, #0x1B0]\n"
 "mov x29, sp\n"
@@ -209,7 +223,7 @@ __asm__(
 "ldp q6, q7, [sp, #0x130]\n"
 "adrp x16, _apt_original_objc_msgSend@PAGE\n"
 "ldr x16, [x16, _apt_original_objc_msgSend@PAGEOFF]\n"
-"blr x16\n"
+APT_ASM_CALL_ORIGINAL
 "stp x0, x1, [sp, #0x80]\n"
 "stp q0, q1, [sp, #0xD0]\n"
 "stp q2, q3, [sp, #0xF0]\n"
@@ -219,9 +233,11 @@ __asm__(
 "ldp q2, q3, [sp, #0xF0]\n"
 "ldp x29, x30, [sp, #0x1B0]\n"
 "add sp, sp, #0x1C0\n"
+APT_ASM_RETURN
 "ret\n"
 ".globl _apt_objc_msgSendSuper2_wrapper\n"
 "_apt_objc_msgSendSuper2_wrapper:\n"
+APT_ASM_ENTRY
 "sub sp, sp, #0x1C0\n"
 "stp x29, x30, [sp, #0x1B0]\n"
 "mov x29, sp\n"
@@ -263,7 +279,7 @@ __asm__(
 "ldp q6, q7, [sp, #0x130]\n"
 "adrp x16, _apt_original_objc_msgSendSuper2@PAGE\n"
 "ldr x16, [x16, _apt_original_objc_msgSendSuper2@PAGEOFF]\n"
-"blr x16\n"
+APT_ASM_CALL_ORIGINAL
 "stp x0, x1, [sp, #0x80]\n"
 "stp q0, q1, [sp, #0xD0]\n"
 "stp q2, q3, [sp, #0xF0]\n"
@@ -273,6 +289,7 @@ __asm__(
 "ldp q2, q3, [sp, #0xF0]\n"
 "ldp x29, x30, [sp, #0x1B0]\n"
 "add sp, sp, #0x1C0\n"
+APT_ASM_RETURN
 "ret\n"
 );
 
@@ -616,16 +633,28 @@ static void apt_perform_rebinding_with_section(struct APTRebindingsEntry *rebind
                                                intptr_t slide,
                                                nlist_t *symtab,
                                                char *strtab,
-                                               uint32_t *indirect_symtab) {
+                                               uint32_t *indirect_symtab,
+                                               BOOL image_uses_chained_fixups) {
     uint32_t *indirect_symbol_indices = indirect_symtab + section->reserved1;
     void **indirect_symbol_bindings = (void **)((uintptr_t)slide + section->addr);
     size_t entry_count = section->size / sizeof(void *);
 
-    vm_protect(mach_task_self(),
-               (vm_address_t)indirect_symbol_bindings,
-               (vm_size_t)section->size,
-               0,
-               VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+#if __has_feature(ptrauth_calls)
+    BOOL is_authenticated_got =
+        strncmp(section->sectname, "__auth_got", sizeof(section->sectname)) == 0;
+    if (is_authenticated_got && !image_uses_chained_fixups) {
+        return;
+    }
+#endif
+
+    kern_return_t protection_status = vm_protect(mach_task_self(),
+                                                 (vm_address_t)indirect_symbol_bindings,
+                                                 (vm_size_t)section->size,
+                                                 0,
+                                                 VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+    if (protection_status != KERN_SUCCESS) {
+        return;
+    }
 
     for (size_t index = 0; index < entry_count; index++) {
         uint32_t symtab_index = indirect_symbol_indices[index];
@@ -648,7 +677,18 @@ static void apt_perform_rebinding_with_section(struct APTRebindingsEntry *rebind
                     if (rebinding->replaced && *(rebinding->replaced) == NULL) {
                         *(rebinding->replaced) = indirect_symbol_bindings[index];
                     }
-                    indirect_symbol_bindings[index] = rebinding->replacement;
+                    void *replacement = rebinding->replacement;
+#if __has_feature(ptrauth_calls)
+                    if (is_authenticated_got) {
+                        void *slot = &indirect_symbol_bindings[index];
+                        void *raw_replacement = ptrauth_strip(replacement, ptrauth_key_function_pointer);
+                        uintptr_t discriminator = ptrauth_blend_discriminator(slot, 0);
+                        replacement = ptrauth_sign_unauthenticated(raw_replacement,
+                                                                  ptrauth_key_function_pointer,
+                                                                  discriminator);
+                    }
+#endif
+                    indirect_symbol_bindings[index] = replacement;
                     goto next_symbol;
                 }
             }
@@ -678,6 +718,7 @@ static void apt_rebind_symbols_for_image(const struct mach_header *header,
     segment_command_t *linkedit_segment = NULL;
     struct symtab_command *symtab_command = NULL;
     struct dysymtab_command *dysymtab_command = NULL;
+    BOOL image_uses_chained_fixups = NO;
 
     uintptr_t command_cursor = (uintptr_t)header + sizeof(mach_header_t);
     for (uint32_t index = 0; index < header->ncmds; index++) {
@@ -691,6 +732,11 @@ static void apt_rebind_symbols_for_image(const struct mach_header *header,
             symtab_command = (struct symtab_command *)command;
         } else if (command->cmd == LC_DYSYMTAB) {
             dysymtab_command = (struct dysymtab_command *)command;
+        } else if (command->cmd == LC_DYLD_CHAINED_FIXUPS) {
+            // The authenticated pointer layout is described by dyld chained
+            // fixups. At runtime the encoded chain has already been resolved,
+            // so the __auth_got ABI schema is used to re-sign each patched slot.
+            image_uses_chained_fixups = YES;
         }
         command_cursor += command->cmdsize;
     }
@@ -717,7 +763,13 @@ static void apt_rebind_symbols_for_image(const struct mach_header *header,
                     section_t *section = (section_t *)((uintptr_t)segment + sizeof(segment_command_t)) + section_index;
                     uint32_t type = section->flags & SECTION_TYPE;
                     if (type == S_LAZY_SYMBOL_POINTERS || type == S_NON_LAZY_SYMBOL_POINTERS) {
-                        apt_perform_rebinding_with_section(rebindings, section, slide, symtab, strtab, indirect_symtab);
+                        apt_perform_rebinding_with_section(rebindings,
+                                                           section,
+                                                           slide,
+                                                           symtab,
+                                                           strtab,
+                                                           indirect_symtab,
+                                                           image_uses_chained_fixups);
                     }
                 }
             }

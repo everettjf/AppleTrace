@@ -224,14 +224,15 @@ Open [ui.perfetto.dev](https://ui.perfetto.dev) and drag in `trace.json` (or use
 From the repository root:
 
 ```bash
-# iOS device (arm64)
+# iOS device (arm64; add ARCHS=arm64e for an arm64e validation build)
 xcodebuild -project appletrace/appletrace.xcodeproj -scheme appletrace \
   -configuration Release -sdk iphoneos build
 ```
 
-> AppleTrace targets **arm64 only**. arm64e is out of scope: the auto-hook would
-> have to rebind pointer-authenticated GOT entries, so the hook source
-> deliberately fails to compile for arm64e. Build a plain arm64 slice.
+> The automatic hook supports arm64 and has an experimental arm64e backend.
+> arm64e replacements in chained-fixup `__auth_got` slots are signed using the
+> standard function-pointer PAC schema. Validate that path on a real arm64e
+> device before shipping it; the Simulator cannot exercise pointer authentication.
 
 Embed the resulting `appletrace.framework` into your target (see
 `sample/TraceAllMsgDemo` for both manual sections and the auto-hook). For
@@ -400,12 +401,12 @@ Want to try it without building anything? Drag the prebuilt
 
 ## 🧩 Platform & Hook Support
 
-AppleTrace targets **arm64 only**.
+AppleTrace targets **arm64 and arm64e**.
 
-| Mode | arm64 |
-|------|:-----:|
-| Manual sections & explicit events (`APTBeginSection`, `APTInstant`, …) | ✅ |
-| Automatic `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ |
+| Mode | arm64 | arm64e |
+|------|:-----:|:------:|
+| Manual sections & explicit events (`APTBeginSection`, `APTInstant`, …) | ✅ | ✅ |
+| Automatic `objc_msgSend` / `objc_msgSendSuper2` hook | ✅ | Experimental |
 
 - **Manual sections** are the lowest-risk baseline and work on every iOS/macOS
   version.
@@ -413,11 +414,11 @@ AppleTrace targets **arm64 only**.
   stress test — nested sends, `super` dispatch, cross-thread events, a
   10-argument call, and floating-point / small-aggregate ABI cases all survive
   the tracing wrapper.
-- **arm64e is not supported.** Its callers reach `objc_msgSend` through
-  authenticated GOT entries (`__DATA_CONST.__auth_got`), which would require
-  re-signing rebound pointers with the correct pointer-authentication context.
-  Rather than ship an unvalidated hook, the hook source hard-errors when built
-  for arm64e — build a plain arm64 slice instead.
+- The **arm64e auto-hook** detects Mach-O chained fixups and re-signs each
+  `__auth_got` replacement for its storage address with the IA key and zero
+  discriminator, matching the platform function-pointer ABI. The wrapper also
+  uses PAC-aware calls/returns and BTI landing pads. This path needs real-device
+  validation before production use.
 
 ---
 
@@ -477,8 +478,8 @@ future improvements and targeted maintenance when useful.
 
 **Does AppleTrace work on recent iOS versions?**
 Manual instrumentation works on all iOS versions. The automatic hook mode targets
-arm64 only (arm64e is out of scope — see
-[Platform & Hook Support](#-platform--hook-support)).
+arm64, with experimental arm64e support — see
+[Platform & Hook Support](#-platform--hook-support).
 
 **Can I trace third-party apps?**
 Yes — see the loader project and this Chinese guide:

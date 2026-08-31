@@ -8,7 +8,7 @@ AppleTrace is an iOS/macOS tracing library that records Objective-C and Swift ca
 - `Sources/AppleTrace`: Swift API and tracing macros.
 - `Sources/AppleTraceAuto`: automatic Swift tracing bridge.
 - `Tests/AppleTraceTests`: package and macro tests.
-- `appletrace/`, `loader/`, `hookzz/`: legacy Xcode/runtime components.
+- `appletrace/` and `loader/`: legacy Xcode/runtime components.
 - `Tutorial/` and `docs/`: user-facing guides.
 
 ## Build and Test
