@@ -26,3 +26,28 @@ iPhone, but the following claims require physical devices.
 
 Simulator, macOS IPC, cross-compilation, and package inspection are useful
 pre-device gates, but they do not replace these checks.
+
+## Complete the pre-device gate
+
+Run the consolidated verifier on an Apple Silicon Mac with Xcode and an iPhone
+simulator installed:
+
+```bash
+./scripts/verify_without_device.sh
+```
+
+It runs the Swift and Python suites, both writer stress modes, the embedded Web
+Console build, the complete Agent command round trip, both simulator hook
+scenarios, a genuine arm64e compile/slice check with the current iPhoneOS SDK,
+and an iOS cross-build of `AppleTraceServer`.
+
+Theos packaging is optional because Theos is not a repository dependency:
+
+```bash
+THEOS=/path/to/theos RUN_THEOS_PACKAGE_TESTS=1 \
+  ./scripts/verify_without_device.sh
+```
+
+A successful run proves the build, protocol, control, exporter, simulator ABI,
+late-image, arm64e compilation, and package-generation gates. It deliberately
+does not claim the physical-device behaviors listed above.

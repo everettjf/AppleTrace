@@ -28,7 +28,7 @@ clang -fobjc-arc -framework Foundation \
   "${ROOT_DIR}/Jailbreak/Tweak/AgentTransport.m" \
   -o "${WORK_DIR}/agent_harness"
 
-APPLETRACE_DAEMON_SOCKET="${SOCKET_PATH}" APPLETRACE_TEST_COMMAND=start \
+APPLETRACE_DAEMON_SOCKET="${SOCKET_PATH}" APPLETRACE_TEST_COMMANDS=start,filters,flush,stop \
   "${WORK_DIR}/appletraced" >"${DAEMON_LOG}" 2>&1 &
 DAEMON_PID=$!
 
@@ -46,4 +46,8 @@ for _ in $(seq 1 100); do
 done
 grep -q 'AppleTrace agent connected' "${DAEMON_LOG}"
 grep -q 'bundleIdentifier' "${DAEMON_LOG}"
+grep -q 'agent status after start' "${DAEMON_LOG}"
+grep -q 'agent status after filters' "${DAEMON_LOG}"
+grep -q 'agent status after flush' "${DAEMON_LOG}"
+grep -q 'agent status after stop' "${DAEMON_LOG}"
 echo "jailbreak agent/daemon IPC smoke test passed"

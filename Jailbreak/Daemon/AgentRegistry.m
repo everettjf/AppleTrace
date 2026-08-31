@@ -27,6 +27,42 @@ static BOOL APTDaemonWriteAll(int socketFD, const void *bytes, size_t length) {
     return YES;
 }
 
+static BOOL APTDaemonReadAll(int socketFD, void *bytes, size_t length) {
+    uint8_t *cursor = bytes;
+    while (length > 0) {
+        ssize_t count = read(socketFD, cursor, length);
+        if (count <= 0) return NO;
+        cursor += count;
+        length -= (size_t)count;
+    }
+    return YES;
+}
+
+static BOOL APTDaemonSendJSON(int socketFD, uint16_t type, NSDictionary *payload) {
+    NSData *data = [NSJSONSerialization dataWithJSONObject:payload options:0 error:nil];
+    if (!data || data.length > APTAgentMaximumPayload) return NO;
+    APTAgentFrameHeader header = {
+        .magic = htonl(APTAgentFrameMagic),
+        .version = htons(1),
+        .type = htons(type),
+        .payloadLength = htonl((uint32_t)data.length),
+    };
+    return APTDaemonWriteAll(socketFD, &header, sizeof(header)) &&
+           APTDaemonWriteAll(socketFD, data.bytes, data.length);
+}
+
+static NSDictionary *APTDaemonReadJSON(int socketFD, uint16_t expectedType) {
+    APTAgentFrameHeader header = {0};
+    if (!APTDaemonReadAll(socketFD, &header, sizeof(header))) return nil;
+    uint32_t length = ntohl(header.payloadLength);
+    if (ntohl(header.magic) != APTAgentFrameMagic || ntohs(header.version) != 1 ||
+        ntohs(header.type) != expectedType || length > APTAgentMaximumPayload) return nil;
+    NSMutableData *data = [NSMutableData dataWithLength:length];
+    if (length && !APTDaemonReadAll(socketFD, data.mutableBytes, length)) return nil;
+    id value = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+    return [value isKindOfClass:NSDictionary.class] ? value : nil;
+}
+
 @interface APTAgentRegistry ()
 @property(nonatomic, copy) NSString *socketPath;
 @end
@@ -88,19 +124,19 @@ static BOOL APTDaemonWriteAll(int socketFD, const void *bytes, size_t length) {
 
         // Used by the host IPC smoke test to exercise the daemon-to-Agent
         // command direction without exposing an additional production API.
-        NSString *testCommand = NSProcessInfo.processInfo.environment[@"APPLETRACE_TEST_COMMAND"];
-        if (testCommand.length) {
-            NSData *commandData = [NSJSONSerialization dataWithJSONObject:@{@"command": testCommand}
-                                                                   options:0
-                                                                     error:nil];
-            APTAgentFrameHeader commandHeader = {
-                .magic = htonl(APTAgentFrameMagic),
-                .version = htons(1),
-                .type = htons(2),
-                .payloadLength = htonl((uint32_t)commandData.length),
-            };
-            APTDaemonWriteAll(client, &commandHeader, sizeof(commandHeader));
-            APTDaemonWriteAll(client, commandData.bytes, commandData.length);
+        NSString *testCommands = NSProcessInfo.processInfo.environment[@"APPLETRACE_TEST_COMMANDS"];
+        if (testCommands.length) {
+            for (NSString *name in [testCommands componentsSeparatedByString:@","]) {
+                NSDictionary *command = [name isEqualToString:@"filters"]
+                    ? @{@"command": name,
+                        @"allowClassPrefixes": @[@"APTAllowed"],
+                        @"denyClassPrefixes": @[@"APTDeny"]}
+                    : @{@"command": name};
+                if (!APTDaemonSendJSON(client, 2, command)) break;
+                NSDictionary *status = APTDaemonReadJSON(client, 3);
+                if (!status) break;
+                NSLog(@"AppleTrace agent status after %@: %@", name, status);
+            }
         }
 
         // Phase 3 keeps the connection alive and validates Agent framing. The

@@ -484,6 +484,11 @@ injector supplied by the device environment. Injected apps connect outward to
 the local `appletraced` Unix socket and do not open TCP ports. See
 [`Jailbreak/README.md`](Jailbreak/README.md).
 
+Without a phone, run `./scripts/verify_without_device.sh` to execute the full
+host, simulator, arm64e compile, control-plane, and exporter gate. Optional
+Theos packaging and the remaining physical-device checks are documented in
+[`docs/device-validation.md`](docs/device-validation.md).
+
 ---
 
 ## ❓ FAQ

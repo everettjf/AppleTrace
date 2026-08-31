@@ -102,14 +102,13 @@ should lean into that rather than chasing Frida's full feature set.
 ### Phase 2 — Hot-path performance
 - ✅ Introduce `(Class, SEL)` name interning.
 - ✅ Use a zero-allocation per-thread call stack (no per-message `malloc`).
-- 🛠️ Move event recording to per-thread batched buffers with bulk background
-  flushing — implemented per
-  [docs/perf-batching-design.md](docs/perf-batching-design.md); **pending macOS
-  build + profiling verification.**
-- 🛠️ Defer JSON formatting to the exporter; emit binary events at runtime.
-  Exporter/decoder implemented + tested (`appletrace_binary.py`, wired into
-  `merge.py`); native writer implemented behind opt-in `APPLETRACE_BINARY=1`
-  (**pending macOS verification**). See
+- ✅ Move event recording to per-thread batched buffers with bulk background
+  flushing, implemented per
+  [docs/perf-batching-design.md](docs/perf-batching-design.md). The host stress
+  harness verifies 200,000 paired events without loss or duplication.
+- ✅ Defer JSON formatting to the exporter; emit binary events at runtime.
+  Exporter/decoder is wired into `merge.py`; the native writer is available
+  behind `APPLETRACE_BINARY=1` and covered by the same stress harness. See
   [docs/binary-fragment-format.md](docs/binary-fragment-format.md).
 
 ### Phase 3 — Expressiveness & control

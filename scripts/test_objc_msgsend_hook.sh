@@ -57,7 +57,7 @@ xcodebuild \
   -scheme TraceAllMsgDemo \
   -configuration Debug \
   -sdk iphonesimulator \
-  -destination "platform=iOS Simulator,name=${SIMULATOR_NAME}" \
+  -destination "platform=iOS Simulator,id=${DEVICE_ID}" \
   -derivedDataPath "${DERIVED_DATA_DIR}" \
   build CODE_SIGNING_ALLOWED=NO IPHONEOS_DEPLOYMENT_TARGET="${SIMULATOR_DEPLOYMENT_TARGET}" >/tmp/appletrace-smoke-build.log
 
