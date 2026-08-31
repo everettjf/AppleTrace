@@ -17,7 +17,7 @@ AppleTraceTweak_FRAMEWORKS = Foundation
 AppleTraceTweak_LIBRARIES = substrate
 
 TOOL_NAME = appletraced
-appletraced_FILES = Daemon/main.m Daemon/AgentRegistry.m
+appletraced_FILES = Daemon/main.m Daemon/AgentRegistry.m Daemon/ControlServer.m
 appletraced_CFLAGS = -fobjc-arc
 appletraced_FRAMEWORKS = Foundation
 appletraced_INSTALL_PATH = /usr/libexec
@@ -27,6 +27,8 @@ include $(THEOS_MAKE_PATH)/tool.mk
 
 after-stage::
 	/usr/libexec/PlistBuddy -c "Set :ProgramArguments:0 $(THEOS_PACKAGE_INSTALL_PREFIX)/usr/libexec/appletraced" "$(THEOS_STAGING_DIR)/Library/LaunchDaemons/com.everettjf.appletraced.plist"
+	mkdir -p "$(THEOS_STAGING_DIR)/usr/share/appletrace"
+	cp -R "../Sources/AppleTraceServer/Resources/Console" "$(THEOS_STAGING_DIR)/usr/share/appletrace/console"
 
 after-install::
 	install.exec "launchctl kickstart -k system/com.everettjf.appletraced || true"

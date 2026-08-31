@@ -462,7 +462,8 @@ WebSocket 服务。集成 AppleTrace 的 App 可以通过内置 Web Console 开�
 
 `Jailbreak/` 包使用 bundle allowlist，并复用设备现有的 Substrate-compatible
 injector。被注入的 App 只主动连接本机 `appletraced` Unix socket，不自行监听 TCP
-端口。详见 [`Jailbreak/README.md`](Jailbreak/README.md)。
+端口。daemon 在 loopback 上提供同一套控制台，可选择进程，并分别控制采集、过滤、
+trace 列表与下载。详见 [`Jailbreak/README.md`](Jailbreak/README.md)。
 
 暂时没有手机时，可运行 `./scripts/verify_without_device.sh`，一次完成主机、模拟器、
 arm64e 编译、控制面和导出器验收。可选的 Theos 打包方式及剩余真机检查见

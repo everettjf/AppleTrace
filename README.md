@@ -481,7 +481,9 @@ included Web Console. It never starts automatically.
 
 The `Jailbreak/` package uses a bundle allowlist and a Substrate-compatible
 injector supplied by the device environment. Injected apps connect outward to
-the local `appletraced` Unix socket and do not open TCP ports. See
+the local `appletraced` Unix socket and do not open TCP ports. The daemon serves
+the same console on loopback and provides a process selector plus per-app
+capture, filter, artifact-list, and download controls. See
 [`Jailbreak/README.md`](Jailbreak/README.md).
 
 Without a phone, run `./scripts/verify_without_device.sh` to execute the full

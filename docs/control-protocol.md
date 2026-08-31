@@ -1,7 +1,7 @@
 # AppleTrace Control Protocol v1
 
 AppleTrace uses the same control model in an embedded, non-jailbroken app and
-in the future `appletraced` jailbreak daemon. The protocol controls tracing; it
+in the `appletraced` jailbreak daemon. The protocol controls tracing; it
 does not expose shell execution, arbitrary memory access, or arbitrary dylib
 loading.
 
@@ -28,6 +28,19 @@ loading.
 | `GET` | `/api/v1/artifacts` | List trace fragments |
 | `GET` | `/api/v1/artifacts/{name}` | Download one trace fragment |
 
+The daemon adds process-scoped resources:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/agents` | List connected injected processes |
+| `GET` | `/api/v1/agents/{id}` | Read one process snapshot |
+| `POST` | `/api/v1/agents/{id}/start` | Start capture in one process |
+| `POST` | `/api/v1/agents/{id}/stop` | Stop and flush one process |
+| `POST` | `/api/v1/agents/{id}/flush` | Flush one process |
+| `POST` | `/api/v1/agents/{id}/filters` | Replace filters in one process |
+| `GET` | `/api/v1/agents/{id}/artifacts` | List one process's traces |
+| `GET` | `/api/v1/agents/{id}/artifacts/{name}` | Download one process's trace |
+
 Filter request example:
 
 ```json
@@ -48,6 +61,10 @@ ping/pong and close frames. Protocol v1 intentionally does not stream every
 method call: full-rate events remain in AppleTrace's binary batching path.
 Later revisions may add binary trace batches without changing the HTTP
 resources.
+
+The current daemon console polls the Agent list over HTTP once per second. The
+WebSocket endpoint above belongs to embedded mode; a daemon event stream is
+reserved for a later protocol revision.
 
 ## Versioning
 

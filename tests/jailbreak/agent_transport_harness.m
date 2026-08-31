@@ -12,6 +12,12 @@ void APTStopCapture(void) { enabled = NO; }
 APTCaptureState APTGetCaptureState(void) { return enabled ? APTCaptureStateRecording : APTCaptureStateIdle; }
 void APTGetTraceMetrics(APTTraceMetrics *metrics) { if (metrics) *metrics = (APTTraceMetrics){3, 4, 0}; }
 void APTFlush(void) { flushed = YES; }
+const char *APTGetTraceDirectory(void) {
+    NSString *path = NSProcessInfo.processInfo.environment[@"APPLETRACE_TEST_TRACE_DIR"] ?: @"/tmp";
+    return path.fileSystemRepresentation;
+}
+
+BOOL APTIsObjcMsgSendHookInstalled(void) { return YES; }
 void APTSetObjcTraceClassFilters(const char *allow, const char *deny) {
     allowFilter = allow ? [NSString stringWithUTF8String:allow] : nil;
     denyFilter = deny ? [NSString stringWithUTF8String:deny] : nil;

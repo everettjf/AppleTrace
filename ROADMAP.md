@@ -129,5 +129,7 @@ should lean into that rather than chasing Frida's full feature set.
 - ✅ Embedded React control console and trace artifact download.
 - ✅ Theos rootless/rootful tweak package, bundle allowlist, `appletraced`, and
   bidirectional Unix-socket Agent transport.
+- ✅ Multi-Agent session broker with process-scoped commands and trace access.
+- ✅ Daemon-hosted React console with connected-process selection.
 - ⏳ Validate the tweak on supported jailbroken devices and injector stacks;
   host builds cannot prove injection, sandbox, launchd, or PAC runtime behavior.

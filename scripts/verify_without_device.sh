@@ -11,28 +11,31 @@ trap cleanup EXIT
 
 cd "${ROOT_DIR}"
 
-echo "[1/9] Swift package tests"
+echo "[1/10] Swift package tests"
 swift test
 
-echo "[2/9] Python exporter tests"
+echo "[2/10] Python exporter tests"
 python3 -m unittest discover -s Tests -p 'test_*.py'
 
-echo "[3/9] Text and binary writer stress test"
+echo "[3/10] Text and binary writer stress test"
 ./scripts/test_batching_stress.sh
 
-echo "[4/9] Embedded Web Console"
+echo "[4/10] Embedded Web Console"
 ./scripts/build_web_console.sh
 
-echo "[5/9] Jailbreak Agent/daemon protocol"
+echo "[5/10] Jailbreak Agent/daemon protocol"
 ./scripts/test_jailbreak_ipc.sh
 
-echo "[6/9] Standard simulator hook scenario"
+echo "[6/10] Jailbreak multi-Agent control server"
+./scripts/test_jailbreak_control.sh
+
+echo "[7/10] Standard simulator hook scenario"
 ./scripts/test_objc_msgsend_hook.sh
 
-echo "[7/9] Experimental simulator ABI and late-image scenario"
+echo "[8/10] Experimental simulator ABI and late-image scenario"
 ./scripts/test_objc_msgsend_hook_experimental.sh
 
-echo "[8/9] iOS arm64e compile and slice inspection"
+echo "[9/10] iOS arm64e compile and slice inspection"
 xcodebuild \
   -project sample/TraceAllMsgDemo/TraceAllMsgDemo.xcodeproj \
   -scheme TraceAllMsgDemo \
@@ -51,7 +54,7 @@ FRAMEWORK_BINARY="${DERIVED_DATA_DIR}/Build/Products/Debug-iphoneos/TraceAllMsgD
 [[ "$(lipo -archs "${APP_BINARY}")" == "arm64e" ]]
 [[ "$(lipo -archs "${FRAMEWORK_BINARY}")" == "arm64e" ]]
 
-echo "[9/9] AppleTraceServer iOS cross-build"
+echo "[10/10] AppleTraceServer iOS cross-build"
 swift build --triple arm64-apple-ios15.0 --target AppleTraceServer
 
 if [[ "${RUN_THEOS_PACKAGE_TESTS:-0}" == "1" ]]; then

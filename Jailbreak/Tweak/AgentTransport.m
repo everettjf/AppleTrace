@@ -91,14 +91,29 @@ static int APTConnectToDaemon(void) {
 static NSDictionary *APTAgentStatus(void) {
     APTTraceMetrics metrics = {0};
     APTGetTraceMetrics(&metrics);
+    NSDictionary *environment = NSProcessInfo.processInfo.environment;
+    NSString *bundleIdentifier = environment[@"APPLETRACE_TEST_BUNDLE_ID"] ?: NSBundle.mainBundle.bundleIdentifier;
+    NSString *processName = environment[@"APPLETRACE_TEST_PROCESS_NAME"] ?: NSProcessInfo.processInfo.processName;
+#if defined(__arm64e__)
+    NSString *architecture = @"arm64e";
+#elif defined(__arm64__)
+    NSString *architecture = @"arm64";
+#elif defined(__x86_64__)
+    NSString *architecture = @"x86_64";
+#else
+    NSString *architecture = @"unknown";
+#endif
     return @{
         @"pid": @(getpid()),
-        @"processName": NSProcessInfo.processInfo.processName ?: @"",
-        @"bundleIdentifier": NSBundle.mainBundle.bundleIdentifier ?: @"",
+        @"processName": processName ?: @"",
+        @"bundleIdentifier": bundleIdentifier ?: @"",
+        @"architecture": architecture,
+        @"objcHookInstalled": [NSNumber numberWithBool:APTIsObjcMsgSendHookInstalled()],
         @"captureState": @(APTGetCaptureState()),
         @"acceptedEvents": @(metrics.accepted_events),
         @"pendingBytes": @(metrics.pending_bytes),
         @"writeFailures": @(metrics.write_failures),
+        @"traceDirectory": [NSString stringWithUTF8String:(APTGetTraceDirectory() ?: "")],
     };
 }
 

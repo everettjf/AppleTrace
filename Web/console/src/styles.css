@@ -1,7 +1,7 @@
 :root { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1d2433; background: #f4f6f8; font-synthesis: none; }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 .shell { min-height: 100vh; display: grid; grid-template-columns: 216px 1fr; }
 aside { border-right: 1px solid #e2e6ea; background: #fbfcfd; padding: 24px 14px; display: flex; flex-direction: column; }
 .brand { height: 40px; display: flex; align-items: center; gap: 9px; padding: 0 10px; font-weight: 680; letter-spacing: -.02em; }
@@ -12,6 +12,8 @@ nav button:hover, nav button.active { background: #eef1f4; color: #151a22; }
 .sidebar-foot { margin-top: auto; padding: 10px; color: #9299a5; font-size: 12px; }
 main { width: min(1080px, 100%); padding: 34px 42px; }
 header { min-height: 58px; display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; }
+.header-actions { display: flex; align-items: center; gap: 10px; }
+.header-actions select { max-width: 300px; height: 34px; border: 1px solid #d8dde3; border-radius: 8px; padding: 0 30px 0 10px; background: #fff; color: #303846; }
 h1, h2, p { margin: 0; }
 h1 { font-size: 23px; letter-spacing: -.03em; }
 h2 { font-size: 20px; letter-spacing: -.025em; }
@@ -22,6 +24,7 @@ header p, .section-title p, .hero p { color: #737c89; font-size: 13px; margin-to
 .eyebrow { color: #7c8591; font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
 .button { border: 1px solid #d9dee4; background: #fff; color: #2e3642; border-radius: 8px; min-height: 36px; padding: 0 13px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; }
 .button:hover { background: #f5f7f9; }
+.button:disabled { cursor: default; opacity: .45; }
 .button.primary { border-color: #1f2937; background: #1f2937; color: #fff; }
 .button.danger { border-color: #c94242; background: #c94242; color: #fff; }
 .badge { display: inline-flex; padding: 5px 9px; border-radius: 999px; font-size: 12px; background: #edf0f3; color: #606977; }
@@ -53,6 +56,7 @@ header p, .section-title p, .hero p { color: #737c89; font-size: 13px; margin-to
   .button { background: #20262e; border-color: #363d47; color: #e7e9ec; }
   .button:hover { background: #29313a; }
   .settings input { background: #14181e; border-color: #343b45; color: #e8ebef; }
+  .header-actions select { background: #181d24; border-color: #343b45; color: #e8ebef; }
   .table, .row, .path { border-color: #2a3038; }
 }
 @media (max-width: 760px) {
@@ -61,6 +65,9 @@ header p, .section-title p, .hero p { color: #737c89; font-size: 13px; margin-to
   nav { margin-top: 8px; display: flex; }
   .sidebar-foot { display: none; }
   main { padding: 24px 18px; }
+  header { gap: 14px; }
+  .header-actions { align-items: flex-end; flex-direction: column-reverse; }
+  .header-actions select { max-width: 180px; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .row { grid-template-columns: 1fr auto; }
   .row > span { display: none; }

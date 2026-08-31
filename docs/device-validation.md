@@ -17,6 +17,8 @@ iPhone, but the following claims require physical devices.
 - Validate at least ElleKit plus one libhooker/Substitute-compatible stack.
 - Confirm the tweak is inert when the bundle id is absent from `EnabledBundles`.
 - Enable one ordinary test app, restart it, and confirm Agent registration.
+- Enable two test apps and confirm the Web Console can select each process
+  without mixing status, commands, or artifacts.
 - Exercise start, stop, flush, and filter commands over `appletraced`.
 - Confirm SpringBoard and unrelated apps remain stable after repeated crashes.
 - Verify launchd restart, Agent reconnect, trace ownership, disk quotas, and
@@ -37,7 +39,8 @@ simulator installed:
 ```
 
 It runs the Swift and Python suites, both writer stress modes, the embedded Web
-Console build, the complete Agent command round trip, both simulator hook
+Console build, the complete Agent command round trip, the two-Agent daemon HTTP
+control and artifact test, both simulator hook
 scenarios, a genuine arm64e compile/slice check with the current iPhoneOS SDK,
 and an iOS cross-build of `AppleTraceServer`.
 

@@ -19,8 +19,27 @@ export interface AgentStatus {
 export interface Artifact {
   name: string;
   size: number;
-  modifiedAt: string;
+  modifiedAt: string | number;
 }
+
+export interface DaemonAgent {
+  id: string;
+  connected: boolean;
+  connectedAt: number;
+  lastSeenAt: number;
+  pid: number;
+  processName: string;
+  bundleIdentifier: string;
+  architecture: string;
+  objcHookInstalled: boolean;
+  captureState: number;
+  acceptedEvents: number;
+  pendingBytes: number;
+  writeFailures: number;
+  traceDirectory: string;
+}
+
+export interface AgentList { protocolVersion: number; agents: DaemonAgent[]; }
 
 export interface Filters {
   allowClassPrefixes: string[];
@@ -55,11 +74,30 @@ export class AppleTraceAPI {
   }
 
   status() { return this.request<AgentStatus>("/api/v1/status"); }
+  agents() { return this.request<AgentList>("/api/v1/agents"); }
   artifacts() { return this.request<Artifact[]>("/api/v1/artifacts"); }
   start() { return this.request<AgentStatus>("/api/v1/capture/start", { method: "POST" }); }
   stop() { return this.request<AgentStatus>("/api/v1/capture/stop", { method: "POST" }); }
   setFilters(filters: Filters) {
     return this.request<Filters>("/api/v1/filters", { method: "POST", body: JSON.stringify(filters) });
+  }
+
+  agentCommand(id: string, command: "start" | "stop" | "flush") {
+    return this.request<{ accepted: boolean; agentId: string }>(
+      `/api/v1/agents/${encodeURIComponent(id)}/${command}`,
+      { method: "POST" },
+    );
+  }
+
+  setAgentFilters(id: string, filters: Filters) {
+    return this.request<{ accepted: boolean; agentId: string }>(
+      `/api/v1/agents/${encodeURIComponent(id)}/filters`,
+      { method: "POST", body: JSON.stringify(filters) },
+    );
+  }
+
+  agentArtifacts(id: string) {
+    return this.request<Artifact[]>(`/api/v1/agents/${encodeURIComponent(id)}/artifacts`);
   }
 
   statusStream(): WebSocket {
@@ -69,7 +107,18 @@ export class AppleTraceAPI {
   }
 
   async download(name: string) {
-    const response = await fetch(`/api/v1/artifacts/${encodeURIComponent(name)}`, {
+    return this.downloadAt(`/api/v1/artifacts/${encodeURIComponent(name)}`, name);
+  }
+
+  async downloadAgentArtifact(id: string, name: string) {
+    return this.downloadAt(
+      `/api/v1/agents/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(name)}`,
+      name,
+    );
+  }
+
+  private async downloadAt(path: string, name: string) {
+    const response = await fetch(path, {
       headers: { "Authorization": `Bearer ${this.token}` },
     });
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
