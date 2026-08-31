@@ -51,6 +51,17 @@ THEOS=/path/to/theos RUN_THEOS_PACKAGE_TESTS=1 \
   ./scripts/verify_without_device.sh
 ```
 
+To run only the package gate, use:
+
+```bash
+THEOS=/path/to/theos ./scripts/test_jailbreak_packages.sh
+```
+
+This builds both layouts, checks the `arm64` and `arm64e` slices of the tweak
+and daemon, validates the launchd executable path, and confirms that the Web
+Console assets are present in each staging tree. CI runs this package gate on
+every pull request.
+
 A successful run proves the build, protocol, control, exporter, simulator ABI,
 late-image, arm64e compilation, and package-generation gates. It deliberately
 does not claim the physical-device behaviors listed above.

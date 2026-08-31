@@ -490,6 +490,8 @@ Without a phone, run `./scripts/verify_without_device.sh` to execute the full
 host, simulator, arm64e compile, control-plane, and exporter gate. Optional
 Theos packaging and the remaining physical-device checks are documented in
 [`docs/device-validation.md`](docs/device-validation.md).
+The implementation and evidence for each phase are summarized in
+[`docs/control-plane-phases.md`](docs/control-plane-phases.md).
 
 ---
 

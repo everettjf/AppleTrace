@@ -468,6 +468,8 @@ trace 列表与下载。详见 [`Jailbreak/README.md`](Jailbreak/README.md)。
 暂时没有手机时，可运行 `./scripts/verify_without_device.sh`，一次完成主机、模拟器、
 arm64e 编译、控制面和导出器验收。可选的 Theos 打包方式及剩余真机检查见
 [`docs/device-validation.md`](docs/device-validation.md)。
+四个阶段各自的实现范围与验证证据见
+[`docs/control-plane-phases.md`](docs/control-plane-phases.md)。
 
 ---
 

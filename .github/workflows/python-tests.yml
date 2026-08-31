@@ -54,3 +54,16 @@ jobs:
         run: |
           ./scripts/test_jailbreak_ipc.sh
           ./scripts/test_jailbreak_control.sh
+
+  jailbreak-packages:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Theos prerequisites
+        run: brew install ldid
+      - name: Checkout Theos
+        run: git clone --recursive --depth 1 https://github.com/theos/theos.git "${RUNNER_TEMP}/theos"
+      - name: Build and inspect rootless and rootful packages
+        env:
+          THEOS: ${{ runner.temp }}/theos
+        run: ./scripts/test_jailbreak_packages.sh

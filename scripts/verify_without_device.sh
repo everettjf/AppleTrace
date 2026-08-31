@@ -63,8 +63,7 @@ if [[ "${RUN_THEOS_PACKAGE_TESTS:-0}" == "1" ]]; then
     exit 1
   fi
   echo "[extra] Rootless and rootful Theos packages"
-  make -C Jailbreak clean package THEOS_PACKAGE_SCHEME=rootless
-  make -C Jailbreak clean package THEOS_PACKAGE_SCHEME=
+  ./scripts/test_jailbreak_packages.sh
 fi
 
 echo "All checks available without a physical device passed."

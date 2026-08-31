@@ -41,6 +41,13 @@ make clean
 make package THEOS_PACKAGE_SCHEME=
 ```
 
+The repository-level package gate builds both variants and inspects their
+architectures, launchd paths, and packaged Web Console:
+
+```bash
+THEOS=/path/to/theos ./scripts/test_jailbreak_packages.sh
+```
+
 The package targets iOS 15 or newer and builds arm64 plus arm64e slices. A real
 jailbroken device remains required to validate injector compatibility, sandbox
 behavior, SpringBoard safety mode, and end-to-end PAC behavior.
