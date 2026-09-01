@@ -366,7 +366,10 @@ static void APTAppendScenarioProgressInsets(const char *label, UIEdgeInsets inse
     }
 
     self.didStartTraceScenario = YES;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+    // Start promptly so simulator automation cannot background the sample
+    // before the scenario begins. The scenario itself still exercises delayed
+    // main-queue completion and background concurrency.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(250 * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
         BOOL shouldRunExperimental = APTBoolFromEnvironment(@"APPLETRACE_EXPERIMENTAL_SCENARIO") ||
                                      APTProcessHasArgument(@"-AppleTraceExperimentalScenario") ||
                                      APTExperimentalMarkerExists();

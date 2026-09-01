@@ -25,10 +25,13 @@ void APTSetObjcTraceClassFilters(const char *allow, const char *deny) {
 
 int main(void) {
     @autoreleasepool {
+        NSTimeInterval minimumRuntime = [NSProcessInfo.processInfo.environment[@"APPLETRACE_TEST_MIN_RUNTIME"] doubleValue];
+        NSDate *startedAt = NSDate.date;
         APTStartAgentTransport();
         for (NSInteger attempt = 0; attempt < 200; attempt++) {
             if (!enabled && flushed && [allowFilter isEqualToString:@"APTAllowed"] &&
-                [denyFilter isEqualToString:@"APTDeny"]) break;
+                [denyFilter isEqualToString:@"APTDeny"] &&
+                -startedAt.timeIntervalSinceNow >= minimumRuntime) break;
             [NSThread sleepForTimeInterval:0.02];
         }
         return !enabled && flushed && [allowFilter isEqualToString:@"APTAllowed"] &&

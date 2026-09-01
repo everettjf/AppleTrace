@@ -2,6 +2,7 @@
 #import "appletrace.h"
 
 #import <arpa/inet.h>
+#import <poll.h>
 #import <sys/socket.h>
 #import <sys/un.h>
 #import <unistd.h>
@@ -24,6 +25,21 @@ typedef struct __attribute__((packed)) APTAgentFrameHeader {
 static const uint32_t APTAgentFrameMagic = 0x41505431; // "APT1"
 static const uint16_t APTAgentProtocolVersion = 1;
 static const uint32_t APTAgentMaximumPayload = 1024 * 1024;
+
+static NSString *APTAgentInstanceIdentifier(void) {
+    static NSString *identifier;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        identifier = NSUUID.UUID.UUIDString.lowercaseString;
+    });
+    return identifier;
+}
+
+static NSTimeInterval APTAgentHeartbeatInterval(void) {
+    double configured = [NSProcessInfo.processInfo.environment[@"APPLETRACE_AGENT_HEARTBEAT_INTERVAL"] doubleValue];
+    if (configured <= 0) return 5.0;
+    return MIN(MAX(configured, 0.1), 60.0);
+}
 
 static BOOL APTWriteAll(int socketFD, const void *bytes, size_t length) {
     const uint8_t *cursor = bytes;
@@ -72,6 +88,12 @@ static NSString *APTAgentSocketPath(void) {
 static int APTConnectToDaemon(void) {
     int socketFD = socket(AF_UNIX, SOCK_STREAM, 0);
     if (socketFD < 0) return -1;
+#ifdef SO_NOSIGPIPE
+    int noSignal = 1;
+    setsockopt(socketFD, SOL_SOCKET, SO_NOSIGPIPE, &noSignal, sizeof(noSignal));
+#endif
+    struct timeval sendTimeout = {.tv_sec = 2, .tv_usec = 0};
+    setsockopt(socketFD, SOL_SOCKET, SO_SNDTIMEO, &sendTimeout, sizeof(sendTimeout));
 
     struct sockaddr_un address = {0};
     address.sun_family = AF_UNIX;
@@ -88,7 +110,7 @@ static int APTConnectToDaemon(void) {
     return socketFD;
 }
 
-static NSDictionary *APTAgentStatus(void) {
+static NSDictionary *APTAgentStatus(uint64_t connectionSequence) {
     APTTraceMetrics metrics = {0};
     APTGetTraceMetrics(&metrics);
     NSDictionary *environment = NSProcessInfo.processInfo.environment;
@@ -104,6 +126,8 @@ static NSDictionary *APTAgentStatus(void) {
     NSString *architecture = @"unknown";
 #endif
     return @{
+        @"instanceId": APTAgentInstanceIdentifier(),
+        @"connectionSequence": @(connectionSequence),
         @"pid": @(getpid()),
         @"processName": processName ?: @"",
         @"bundleIdentifier": bundleIdentifier ?: @"",
@@ -136,19 +160,35 @@ static void APTApplyCommand(NSDictionary *command) {
 }
 
 static void APTAgentRun(void) {
+    uint64_t connectionSequence = 0;
+    useconds_t reconnectDelay = 1000000;
     for (;;) {
         @autoreleasepool {
             int socketFD = APTConnectToDaemon();
             if (socketFD < 0) {
-                sleep(2);
+                usleep(reconnectDelay + arc4random_uniform(250000));
+                reconnectDelay = MIN(reconnectDelay * 2, (useconds_t)30000000);
                 continue;
             }
-            if (!APTSendJSON(socketFD, APTAgentMessageHello, APTAgentStatus())) {
+            connectionSequence++;
+            if (!APTSendJSON(socketFD, APTAgentMessageHello, APTAgentStatus(connectionSequence))) {
                 close(socketFD);
+                usleep(reconnectDelay + arc4random_uniform(250000));
+                reconnectDelay = MIN(reconnectDelay * 2, (useconds_t)30000000);
                 continue;
             }
+            reconnectDelay = 1000000;
 
             for (;;) {
+                struct pollfd descriptor = {.fd = socketFD, .events = POLLIN};
+                int timeout = (int)(APTAgentHeartbeatInterval() * 1000.0);
+                int ready = poll(&descriptor, 1, timeout);
+                if (ready == 0) {
+                    if (!APTSendJSON(socketFD, APTAgentMessageHeartbeat,
+                                     APTAgentStatus(connectionSequence))) break;
+                    continue;
+                }
+                if (ready < 0 || !(descriptor.revents & POLLIN)) break;
                 APTAgentFrameHeader header = {0};
                 if (!APTReadAll(socketFD, &header, sizeof(header))) break;
                 uint32_t magic = ntohl(header.magic);
@@ -162,12 +202,13 @@ static void APTAgentRun(void) {
                 if (type == APTAgentMessageCommand) {
                     NSDictionary *command = [NSJSONSerialization JSONObjectWithData:payload options:0 error:nil];
                     if ([command isKindOfClass:NSDictionary.class]) APTApplyCommand(command);
-                    if (!APTSendJSON(socketFD, APTAgentMessageStatus, APTAgentStatus())) break;
+                    if (!APTSendJSON(socketFD, APTAgentMessageStatus,
+                                     APTAgentStatus(connectionSequence))) break;
                 }
             }
             close(socketFD);
         }
-        sleep(1);
+        usleep(reconnectDelay + arc4random_uniform(250000));
     }
 }
 

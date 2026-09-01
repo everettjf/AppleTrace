@@ -60,7 +60,9 @@ Evidence without a phone:
 - `scripts/test_jailbreak_ipc.sh` verifies the framed bidirectional command
   protocol.
 - `scripts/test_jailbreak_control.sh` verifies authentication, registration,
-  process-scoped commands, disconnect cleanup, and artifact confinement.
+  process-scoped commands, heartbeats, stale-session eviction, reconnect
+  identity, bounded command writes, HTTP input/concurrency limits, artifact
+  confinement, and oldest-first quota cleanup.
 - `scripts/test_jailbreak_packages.sh` builds and inspects rootless and rootful
   packages, both architecture slices, launchd paths, and Web Console assets.
 - The iOS 27 SDK gate builds a genuine `arm64e` app and framework and inspects

@@ -24,6 +24,9 @@ export interface Artifact {
 
 export interface DaemonAgent {
   id: string;
+  instanceId: string;
+  connectionSequence: number;
+  connectionCount: number;
   connected: boolean;
   connectedAt: number;
   lastSeenAt: number;

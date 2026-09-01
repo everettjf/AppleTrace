@@ -131,5 +131,9 @@ should lean into that rather than chasing Frida's full feature set.
   bidirectional Unix-socket Agent transport.
 - ✅ Multi-Agent session broker with process-scoped commands and trace access.
 - ✅ Daemon-hosted React console with connected-process selection.
+- ✅ Agent heartbeats, stale-session eviction, stable reconnect identity, and
+  bounded command writes.
+- ✅ Bounded HTTP clients/input plus per-Agent trace quotas and oldest-first
+  retention.
 - ⏳ Validate the tweak on supported jailbroken devices and injector stacks;
   host builds cannot prove injection, sandbox, launchd, or PAC runtime behavior.

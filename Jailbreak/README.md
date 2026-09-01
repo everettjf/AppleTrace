@@ -32,6 +32,27 @@ Read `ControlToken` from
 session storage and removes it from the visible URL. The console can select a
 process, start or stop capture, update filters, and download its traces.
 
+### Stability limits
+
+Production defaults are conservative and can be overridden in the launchd
+environment when needed:
+
+| Variable | Default | Purpose |
+|---|---:|---|
+| `APPLETRACE_AGENT_HEARTBEAT_INTERVAL` | 5 seconds | Agent status heartbeat |
+| `APPLETRACE_AGENT_IDLE_TIMEOUT` | 15 seconds | Remove silent Agent sessions |
+| `APPLETRACE_AGENT_SEND_TIMEOUT` | 2 seconds | Bound daemon command writes |
+| `APPLETRACE_AGENT_MAX_SESSIONS` | 256 | Bound concurrent Agent sockets |
+| `APPLETRACE_CONTROL_MAX_CLIENTS` | 32 | Bound concurrent HTTP clients |
+| `APPLETRACE_ARTIFACT_QUOTA_BYTES` | 256 MiB | Per-process trace quota |
+| `APPLETRACE_ARTIFACT_MAX_FILES` | 128 | Per-process trace-file limit |
+| `APPLETRACE_ARTIFACT_SWEEP_INTERVAL` | 30 seconds | Retention sweep cadence |
+
+The daemon removes oldest completed fragments first and always retains at least
+the newest trace. HTTP requests also have fixed header, path, body, and idle
+limits. Agent reconnects retain a process-level id and increment a connection
+counter so transient daemon or socket failures remain visible.
+
 ## Build
 
 ```bash

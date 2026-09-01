@@ -14,6 +14,9 @@ loading.
   `appletrace-token.<token>` alongside the `appletrace-v1` subprotocol. The
   server selects only `appletrace-v1`, so the credential is not echoed.
 - The default token is 128 random bits encoded as lowercase hexadecimal.
+- HTTP headers are limited to 32 KiB, request bodies to 64 KiB, and paths to
+  2,048 characters. Slow clients time out and the daemon bounds concurrent
+  clients instead of creating unbounded workers.
 - LAN binding is opt-in and should be paired with a device-local approval flow
   before it is exposed by a host app.
 
@@ -65,6 +68,38 @@ resources.
 The current daemon console polls the Agent list over HTTP once per second. The
 WebSocket endpoint above belongs to embedded mode; a daemon event stream is
 reserved for a later protocol revision.
+
+## Agent session lifecycle
+
+Each injected process creates one stable random `instanceId` and sends it in
+the hello frame. Reconnecting with the same id replaces the stale socket while
+preserving `connectionCount`; `connectionSequence` is maintained by the Agent.
+The Agent sends a full status heartbeat every five seconds. `appletraced`
+closes a session after 15 seconds without a complete frame and bounds command
+writes to two seconds. Agent reconnects use jittered exponential backoff capped
+at 30 seconds, and socket writes suppress `SIGPIPE` so a daemon restart cannot
+terminate the host app. These defaults can be tightened for tests through the
+environment variables documented in `Jailbreak/README.md`.
+
+HTTP errors use a stable machine-readable code and a human-readable message:
+
+```json
+{
+  "error": "invalid_filters",
+  "message": "Filters must contain at most 256 short string prefixes"
+}
+```
+
+Filter arrays contain at most 256 strings per list; each prefix is at most 256
+characters and may not contain control characters.
+
+## Artifact retention
+
+The daemon applies a per-Agent quota of 256 MiB and 128 trace files. It sweeps
+periodically and before artifact listings, deleting oldest fragments first
+while retaining at least the newest fragment so an active capture is not
+removed merely because it exceeds the quota by itself. Only regular
+`.appletrace` and `.appletracebin` files participate.
 
 ## Versioning
 
